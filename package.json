@@ -20,8 +20,6 @@
         "prettier-plugin-apex": "^1.9.1"
     },
     "scripts": {
-        "qa": "sfdx force:org:open -u \"$npm_package_name\"QA",
-        "prod": "sfdx force:org:open -u \"$npm_package_name\"Prod",
         "devhub": "sfdx force:org:open -u \"$npm_package_name\"DevHub",
         "dev": "sfdx force:org:open -u \"$npm_package_name\"",
         "start": "bash scripts/create-scratch-org.sh",
@@ -31,10 +29,6 @@
         "test-pkg": "bash scripts/install-test-package.sh",
         "setup": "npm run setup-auth-devhub",
         "setup-auth-devhub": "bash scripts/setup-auth-devhub.sh",
-        "setup-auth-prod": "bash scripts/setup-auth-prod.sh",
-        "setup-auth-qa": "bash scripts/setup-auth-qa.sh",
-        "decrypt": "npm run setup-auth-decrypt",
-        "setup-auth-decrypt": "bash scripts/setup-auth-decrypt.sh",
         "lint": "npm run lint:lwc && npm run lint:aura",
         "lint:lwc": "eslint **/lwc/**",
         "lint:aura": "sfdx force:lightning:lint **/aura/** --exit",
