@@ -4,12 +4,11 @@
 # Requires that a Package version ID was successfully generated in prior step.
 
 PROJECT_NAME=PageLayoutComparison
+DEVHUB_NAME="${PROJECT_NAME}DevHub"
 
 set -e
 
 TEST_ORG="${PROJECT_NAME}PackageTestOrg"
-#ADMIN_PERMSET_NAME="${PROJECT_NAME}AdminUserPermissions"
-#USER_PERMSET_NAME="${PROJECT_NAME}StandardUserPermissions"
 
 
 if [ -z "$PACKAGE_VER_ID" ]; then
@@ -19,58 +18,24 @@ fi
 echo "Install package to temporary scratch org for testing with version ID: ${PACKAGE_VER_ID} ... "
 
 # Check if "PackageTestOrg" already exists, delete if it does
-if sfdx force:org:list | grep "$TEST_ORG"; then
+if sf org list | grep "$TEST_ORG"; then
     echo "Pre-existing test scratch org detected! Deleting ..."
-    sfdx force:org:delete -u "$TEST_ORG" -p
+    sf org delete scratch -o "$TEST_ORG" -p
 fi
 
 # Generate a fresh scratch org to install & test the package
 # Ensure namespace is NOT applied to this org since this is to simulate a customer install
-sfdx force:org:create --nonamespace --definitionfile config/project-scratch-def.json --setalias "$TEST_ORG"
+sf org create scratch -v "${DEVHUB_NAME}" --no-namespace -f config/project-scratch-def.json -a "$TEST_ORG"
 
 # Install the package
-sfdx force:package:install --package "$PACKAGE_VER_ID" --targetusername "$TEST_ORG"
+sf package install -p "$PACKAGE_VER_ID" -o "$TEST_ORG" --no-prompt -w 15
 
 unset PACKAGE_VER_ID
-
-# Deploy dev artifacts to the scratch org
-#sleep 60
-#echo ""
-#echo "Deploying dev artifacts to the scratch org..."
-#echo ""
-#sfdx force:source:deploy -p force-dev --targetusername "$TEST_ORG" --json
-#echo ""
-#if [ "$?" = "1" ]
-#then
-#	echo "ERROR: Deploying dev artifacts to the scratch org failed!"
-#	exit
-#fi
-#echo "SUCCESS: Dev artifacts deployed successfully to the scratch org!"
-
-
-#echo ""
-#echo "Assigning project permission sets to the default scratch org user..."
-#echo ""
-#sfdx force:user:permset:assign -n ${ADMIN_PERMSET_NAME} -u "$TEST_ORG" --json
-#echo ""
-#if [ "$?" = "1" ]
-#then
-#	echo "ERROR: Assigning a project permission set to the default scratch org user failed!"
-#	exit
-#fi
-#sfdx force:user:permset:assign -n ${USER_PERMSET_NAME} -u "$TEST_ORG" --json
-#echo ""
-#if [ "$?" = "1" ]
-#then
-#	echo "ERROR: Assigning a project permission set to the default scratch org user failed!"
-#	exit
-#fi
-#echo "SUCCESS: Project permission sets assigned successfully to the default scratch org user!"
 
 echo ""
 echo "Opening scratch org for testing, may the Flow be with you!"
 echo ""
 sleep 3
-sfdx force:org:open --targetusername "$TEST_ORG"
+sf org open -o "$TEST_ORG"
 
 exit

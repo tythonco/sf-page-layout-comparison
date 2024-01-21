@@ -45,7 +45,7 @@ if [[ "$RUN_CREATE" == 'y' ]]; then
     echo "Creating the package ${PROJECT_NAME}."
     read  -p "Is this a Managed package (and Namespace is prepared)? y/n " PKG_TYPE
     test "$PKG_TYPE" == 'y' && PKG_TYPE='Managed' || PKG_TYPE='Unlocked'
-    sfdx force:package:create -v ${DEVHUB_NAME} --name "$PROJECT_NAME" --packagetype "$PKG_TYPE" --path "$PKG_PATH"
+    sf package create -v "${DEVHUB_NAME}" -n "$PROJECT_NAME" -t "$PKG_TYPE" --path "$PKG_PATH"
 fi
 
 echo "Package bootstrapped! May the Flow be with you!"

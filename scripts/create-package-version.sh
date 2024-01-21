@@ -8,6 +8,7 @@
 # 2GP workflow documentation see: https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_dev2gp_workflow.htm
 
 PROJECT_NAME=PageLayoutComparison
+DEVHUB_NAME="${PROJECT_NAME}DevHub"
 
 set -e
 
@@ -37,7 +38,7 @@ else
     echo "Creating the package ${PROJECT_NAME}."
     read  -p "Is this a Managed package (and Namespace is prepared)? y/n " PKG_TYPE
     test "$PKG_TYPE" == 'y' && PKG_TYPE='Managed' || PKG_TYPE='Unlocked'
-    sfdx force:package:create --name "$PROJECT_NAME" --packagetype "$PKG_TYPE" --path "$PKG_PATH"
+    sf package create -v "${DEVHUB_NAME}" -n "$PROJECT_NAME" -t "$PKG_TYPE" --path "$PKG_PATH"
 fi
 
 #
@@ -52,12 +53,12 @@ read -p "Temporarily skip validation in package version creation? " SKIP_VALIDAT
 # NOTE: Version ID based on convention noted in package:version:report cmd doc: "ID (starts with 04t)"
 if [ "$SKIP_VALIDATION" == 'y' ]; then
     echo "Creating new version of package ${PROJECT_NAME} ... skipping validation ..."
-    PACKAGE_VER_ID=$(sfdx force:package:version:create --package "$PROJECT_NAME" --installationkeybypass --wait 15 --skipvalidation \
+    PACKAGE_VER_ID=$(sf package version create -v "${DEVHUB_NAME}" -p "$PROJECT_NAME" -x -w 15 --skip-validation \
     | grep login.salesforce.com \
     | sed -E 's/^.*(04t[[:alnum:]]*)$/\1/')
 else
     echo "Creating new version of package ${PROJECT_NAME} ..."
-    PACKAGE_VER_ID=$(sfdx force:package:version:create --package "$PROJECT_NAME" --installationkeybypass --wait 15 \
+    PACKAGE_VER_ID=$(sf package version create -v "${DEVHUB_NAME}" -p "$PROJECT_NAME" -x -w 15 \
     | grep login.salesforce.com \
     | sed -E 's/^.*(04t[[:alnum:]]*)$/\1/')
 fi

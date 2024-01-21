@@ -15,7 +15,7 @@ fi
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
 
 echo "Authenticating to DevHub org..."
-sfdx force:auth:web:login -a ${DEVHUB_NAME} -r https://login.salesforce.com
+sf org login web -d -a ${DEVHUB_NAME} -r https://login.salesforce.com
 
 if [ "$?" = "1" ]
 then
