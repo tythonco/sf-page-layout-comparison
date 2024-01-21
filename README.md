@@ -1,4 +1,4 @@
-# Tython SFDX Project Template
+# PageLayoutComparison Project
 
 ## Setup
 
@@ -9,6 +9,7 @@
 2. Run `npm run setup` for Org Authentication - you will need the project auth key from 1Password
 
 ## Dev/Build
+
 ### For Single Org or 1st Generation Managed Package Development
 
 1. Run `npm start` to spin up a scratch org and run the initial metadata deployment
@@ -36,6 +37,7 @@
 ### For 2nd Generation Managed Package Developmment
 
 1. Run `npm run test-pkg` to install the latest version of the package to a scratch org for testing
+
 ## Description of Files and Directories
 
 `force-app/` is the main src directory. Note `tests/` here is for global testing utils/mocks. Individual component unit test files live in the same folder as said component.

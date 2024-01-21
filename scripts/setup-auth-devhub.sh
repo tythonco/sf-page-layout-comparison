@@ -2,7 +2,7 @@
 
 # Set project name here or follow the cmd line prompt when running script.
 AUTH_FILE=sfdx_auth_url.txt
-PROJECT_NAME=""
+PROJECT_NAME=PageLayoutComparison
 
 if [ -z "$PROJECT_NAME" ]
 then

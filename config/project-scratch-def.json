@@ -1,5 +1,5 @@
 {
-    "orgName": "Tython",
+    "orgName": "PageLayoutComparison",
     "edition": "Developer",
     "settings": {
         "lightningExperienceSettings": {
@@ -14,5 +14,5 @@
             }
         }
     },
-    "adminEmail": "devs@tython.co"
+    "adminEmail": "pagelayoutcomparison@tython.co"
 }

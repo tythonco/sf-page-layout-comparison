@@ -1,5 +1,5 @@
 {
-    "name": "MyProject",
+    "name": "PageLayoutComparison",
     "private": true,
     "devDependencies": {
         "@lwc/eslint-plugin-lwc": "^1.0.1",

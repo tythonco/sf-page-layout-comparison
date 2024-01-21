@@ -5,7 +5,7 @@
 # Prior to running the script, it is expected that the package has been fully-tested (incl. unit tests and adequate code coverage) and is release-ready.
 
 # IMPORTANT! Replace with the actual project name!
-PROJECT_NAME=MyProject
+PROJECT_NAME=PageLayoutComparison
 
 set -e
 

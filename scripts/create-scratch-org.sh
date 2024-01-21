@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # IMPORTANT! Replace with the actual project name!
-PROJECT_NAME=MyProject
+PROJECT_NAME=PageLayoutComparison
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
 #ADMIN_PERMSET_NAME="${PROJECT_NAME}AdminUserPermissions"
 #USER_PERMSET_NAME="${PROJECT_NAME}StandardUserPermissions"

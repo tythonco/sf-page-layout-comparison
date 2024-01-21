@@ -4,7 +4,7 @@
 # Requires that a Package version ID was successfully generated in prior step.
 
 # IMPORTANT! Replace with the actual project name!
-PROJECT_NAME=MyProject
+PROJECT_NAME=PageLayoutComparison
 
 set -e
 

@@ -8,7 +8,7 @@
 # 2GP workflow documentation see: https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_dev2gp_workflow.htm
 
 # IMPORTANT! Replace with the actual project name!
-PROJECT_NAME=MyProject
+PROJECT_NAME=PageLayoutComparison
 
 set -e
 
