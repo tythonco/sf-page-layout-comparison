@@ -2,6 +2,9 @@
 # More information: https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_exclude_source.htm
 #
 
+# Sample Connected App CMDT Records
+ConnectedApp.PLC_Device_Flow.md-meta.xml.sample
+
 # Standard metadata
 package.xml
 **appMenu

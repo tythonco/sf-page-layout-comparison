@@ -2,6 +2,8 @@
 # If you are not using git, you can delete this file. For more information see: https://git-scm.com/docs/gitignore
 # For useful gitignore templates see: https://github.com/github/gitignore
 
+force-app/core/customMetadata/ConnectedApp*.md-meta.xml
+
 # Org Authentication files
 server.crt
 server.key
@@ -9,6 +11,7 @@ server.key
 *auth_url.json
 
 # Salesforce cache
+.sf/
 .sfdx/
 mdapioutput/
 

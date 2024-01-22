@@ -2,6 +2,7 @@
 
 PROJECT_NAME=PageLayoutComparison
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
+PERMSET_NAME="Page_Layout_Comparison"
 
 echo ""
 echo "Building your scratch org, please wait..."
@@ -26,6 +27,17 @@ then
 	exit
 fi
 echo "SUCCESS: Source pushed successfully to the scratch org!"
+
+echo ""
+echo "Assigning project permission sets to the default scratch org user..."
+echo ""
+sf org assign permset -n ${PERMSET_NAME}
+if [ "$?" = "1" ]
+then
+	echo "ERROR: Assigning a project permission set to the default scratch org user failed!"
+	exit
+fi
+echo "SUCCESS: Project permission sets assigned successfully to the default scratch org user!"
 
 sf project reset tracking -p
 

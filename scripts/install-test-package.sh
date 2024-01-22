@@ -5,6 +5,7 @@
 
 PROJECT_NAME=PageLayoutComparison
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
+PERMSET_NAME="tythondemo__Page_Layout_Comparison"
 
 set -e
 
@@ -31,6 +32,17 @@ sf org create scratch -v "${DEVHUB_NAME}" --no-namespace -f config/project-scrat
 sf package install -p "$PACKAGE_VER_ID" -o "$TEST_ORG" --no-prompt -w 15
 
 unset PACKAGE_VER_ID
+
+echo ""
+echo "Assigning project permission sets to the default scratch org user..."
+echo ""
+sf org assign permset -n ${PERMSET_NAME} -o "${TEST_ORG}"
+if [ "$?" = "1" ]
+then
+	echo "ERROR: Assigning a project permission set to the default scratch org user failed!"
+	exit
+fi
+echo "SUCCESS: Project permission sets assigned successfully to the default scratch org user!"
 
 echo ""
 echo "Opening scratch org for testing, may the Flow be with you!"

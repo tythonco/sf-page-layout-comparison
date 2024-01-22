@@ -6,6 +6,7 @@
 
 PROJECT_NAME=PageLayoutComparison
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
+PERMSET_NAME="tythondemo__Page_Layout_Comparison"
 
 set -e
 
@@ -63,6 +64,17 @@ else
 fi
 
 unset PKG_VER_ID
+
+echo ""
+echo "Assigning project permission sets to the default scratch org user..."
+echo ""
+sf org assign permset -n ${PERMSET_NAME} -o "${PROJECT_NAME}PackageTestOrg"
+if [ "$?" = "1" ]
+then
+	echo "ERROR: Assigning a project permission set to the default scratch org user failed!"
+	exit
+fi
+echo "SUCCESS: Project permission sets assigned successfully to the default scratch org user!"
 
 echo ""
 echo "Opening scratch org for final testing before official release!"
