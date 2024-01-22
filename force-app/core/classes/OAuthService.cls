@@ -1,10 +1,12 @@
 public with sharing class OAuthService {
+    private static final ToolingAPIService.AUTH_METHOD DEFAULT_AUTH_METHOD = ToolingApiService.DEFAULT_AUTH_METHOD;
     private static final String DEFAULT_CA = 'PLC_Device_Flow';
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
         .toExternalForm();
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
 
     private String authEndpoint;
+    private ToolingApiService.AUTH_METHOD authMethod;
     private ConnectedApp ca;
     private String nsPrefix;
 
@@ -18,15 +20,27 @@ public with sharing class OAuthService {
     );
 
     public OAuthService() {
-        this(DEFAULT_CA, DEFAULT_DOMAIN);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_CA, DEFAULT_DOMAIN);
     }
 
     public OAuthService(String domain) {
-        this(DEFAULT_CA, domain);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_CA, domain);
     }
 
-    public OAuthService(String caName, String domain) {
+    public OAuthService(
+        ToolingApiService.AUTH_METHOD authMethod,
+        String domain
+    ) {
+        this(authMethod, DEFAULT_CA, domain);
+    }
+
+    public OAuthService(
+        ToolingApiService.AUTH_METHOD authMethod,
+        String caName,
+        String domain
+    ) {
         this.authEndpoint = domain + '/services/oauth2/token';
+        this.authMethod = authMethod;
         ConnectedApp__mdt connectedApp = ConnectedAppSelector.fetchByName(
             caName
         );
@@ -236,6 +250,14 @@ public with sharing class OAuthService {
         creds.id = oauthResponse.id;
         creds.token_type = oauthResponse.token_type;
         creds.issued_at = oauthResponse.issued_at;
+        switch on this.authMethod {
+            when OAUTH_DEVICE {
+                creds.oauth_flow = 'device';
+            }
+            when else {
+                creds.oauth_flow = 'unknown';
+            }
+        }
         creds.organization_id = idOauthResponse.organization_id;
         creds.user_id = idOauthResponse.user_id;
         creds.user_username = idOauthResponse.username;
@@ -293,6 +315,7 @@ public with sharing class OAuthService {
         public String id;
         public String token_type;
         public Long issued_at;
+        public String oauth_flow;
         public String organization_id;
         public String user_id;
         public String user_username;

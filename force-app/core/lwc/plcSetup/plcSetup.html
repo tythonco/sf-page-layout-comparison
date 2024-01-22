@@ -1,0 +1,28 @@
+<template>
+    <lightning-card
+        title="PLC Setup"
+        icon-name="custom:custom108"
+        class="container"
+    >
+        <div class="settings">
+            <lightning-combobox
+                dropdown-alignment="right"
+                name="oauthFlowSelector"
+                value={selectedOauthFlow}
+                label="OAuth Flow"
+                onchange={handleSelectOauthFlow}
+                options={oauthOptions}
+            >
+            </lightning-combobox>
+            <div class="auth-user-table" if:true={displayAuthUserTable}>
+                <lightning-datatable
+                    key-field="username"
+                    columns={columns}
+                    data={rows}
+                    hide-checkbox-column="true"
+                >
+                </lightning-datatable>
+            </div>
+        </div>
+    </lightning-card>
+</template>

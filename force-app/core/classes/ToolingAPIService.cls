@@ -2,10 +2,11 @@ public with sharing class ToolingAPIService {
     public enum AUTH_METHOD {
         CURRENT_USER_SESSIONID,
         CURRENT_USER_SESSIONID_FROM_VF,
-        OAUTH
+        OAUTH_DEVICE
     }
 
-    private static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH;
+    public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH_DEVICE;
+
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
         .toExternalForm();
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
@@ -41,7 +42,7 @@ public with sharing class ToolingAPIService {
 
     public String makeCallout(String path, String contentType, String method) {
         String accessToken;
-        if (this.authMethod == AUTH_METHOD.OAUTH) {
+        if (this.authMethod == AUTH_METHOD.OAUTH_DEVICE) {
             accessToken = OAuthService.getToken(this.username);
         } else if (this.authMethod == AUTH_METHOD.CURRENT_USER_SESSIONID) {
             accessToken = UserInfo.getSessionId();
@@ -89,6 +90,7 @@ public with sharing class ToolingAPIService {
                         this.username
                     );
                     OAuthService oauth = new OAuthService(
+                        this.authMethod,
                         this.url.substringBefore('/services')
                     );
                     OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromRefreshFlow(

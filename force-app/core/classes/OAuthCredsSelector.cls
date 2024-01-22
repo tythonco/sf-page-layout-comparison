@@ -6,6 +6,22 @@ public with sharing class OAuthCredsSelector {
         List<OAuthCreds__mdt>.class
     );
 
+    public static List<OAuthCreds__mdt> fetchAll() {
+        if (Test.isRunningTest())
+            return TEST_OAUTH_CREDS;
+        return [
+            SELECT
+                DeveloperName,
+                Label,
+                MasterLabel,
+                NamespacePrefix,
+                QualifiedApiName,
+                SystemModStamp,
+                Value__c
+            FROM OAuthCreds__mdt
+        ];
+    }
+
     public static List<OAuthCreds__mdt> fetchByUsername(String username) {
         return fetchByUsernames(new List<String>{ username });
     }

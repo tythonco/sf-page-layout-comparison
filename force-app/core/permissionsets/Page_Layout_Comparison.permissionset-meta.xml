@@ -32,6 +32,10 @@
         <apexPage>SessionId</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
+    <tabSettings>
+        <tab>plcSetup</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
     <description>Grants access to Page Layout Comparison tool.</description>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Page Layout Comparison</label>
