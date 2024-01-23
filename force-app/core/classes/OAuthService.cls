@@ -54,19 +54,37 @@ public with sharing class OAuthService {
     }
 
     public static String getToken() {
-        return getToken(DEFAULT_USERNAME);
+        String oauthFlow;
+        switch on DEFAULT_AUTH_METHOD {
+            when OAUTH_DEVICE {
+                oauthFlow = 'device';
+            }
+            when else {
+                oauthFlow = 'unknown';
+            }
+        }
+        return getToken(oauthFlow, DEFAULT_USERNAME);
     }
 
-    public static String getToken(String username) {
-        return (getOAuthCreds(username)).access_token;
+    public static String getToken(String oauthFlow, String username) {
+        return (getOAuthCreds(oauthFlow, username)).access_token;
     }
 
     public static String getRefreshToken() {
-        return getRefreshToken(DEFAULT_USERNAME);
+        String oauthFlow;
+        switch on DEFAULT_AUTH_METHOD {
+            when OAUTH_DEVICE {
+                oauthFlow = 'device';
+            }
+            when else {
+                oauthFlow = 'unknown';
+            }
+        }
+        return getRefreshToken(oauthFlow, DEFAULT_USERNAME);
     }
 
-    public static String getRefreshToken(String userName) {
-        return (getOAuthCreds(username)).refresh_token;
+    public static String getRefreshToken(String oauthFlow, String userName) {
+        return (getOAuthCreds(oauthFlow, username)).refresh_token;
     }
 
     public Map<String, String> generateCodesFromDeviceFlow() {
@@ -120,7 +138,11 @@ public with sharing class OAuthService {
             Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
             String fullNameWithoutNS =
                 'OAuthCreds.' +
-                OAuthCredsSelector.sanitize(creds.user_username);
+                OAuthCredsSelector.sanitize(
+                    creds.oauth_flow +
+                    '_' +
+                    creds.user_username
+                );
             customMetadata.fullName = this.nsPrefix != null
                 ? this.nsPrefix + '__' + fullNameWithoutNS
                 : fullNameWithoutNS;
@@ -139,8 +161,12 @@ public with sharing class OAuthService {
         );
     }
 
-    private static OAuthCredentials getOAuthCreds(String username) {
+    private static OAuthCredentials getOAuthCreds(
+        String oauthFlow,
+        String username
+    ) {
         List<OAuthCreds__mdt> storedCreds = OAuthCredsSelector.fetchByUsername(
+            oauthFlow,
             username
         );
         if (storedCreds.isEmpty()) {

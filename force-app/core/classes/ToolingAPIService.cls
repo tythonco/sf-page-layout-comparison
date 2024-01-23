@@ -13,6 +13,7 @@ public with sharing class ToolingAPIService {
     private static final String DEFAULT_VERSION = '59.0';
 
     private final AUTH_METHOD authMethod;
+    private final String oauthFlow;
     private final String url;
     private final String username;
 
@@ -36,6 +37,14 @@ public with sharing class ToolingAPIService {
         String version
     ) {
         this.authMethod = authMethod;
+        switch on authMethod {
+            when OAUTH_DEVICE {
+                this.oauthFlow = 'device';
+            }
+            when else {
+                this.oauthFlow = 'unknown';
+            }
+        }
         this.url = domain + '/services/data/v' + version + '/tooling/';
         this.username = username;
     }
@@ -43,7 +52,7 @@ public with sharing class ToolingAPIService {
     public String makeCallout(String path, String contentType, String method) {
         String accessToken;
         if (this.authMethod == AUTH_METHOD.OAUTH_DEVICE) {
-            accessToken = OAuthService.getToken(this.username);
+            accessToken = OAuthService.getToken(this.oauthFlow, this.username);
         } else if (this.authMethod == AUTH_METHOD.CURRENT_USER_SESSIONID) {
             accessToken = UserInfo.getSessionId();
         } else if (
@@ -87,6 +96,7 @@ public with sharing class ToolingAPIService {
                 if (errorResp[0].errorCode == 'INVALID_SESSION_ID') {
                     // Refresh access token and try again
                     String refreshToken = OAuthService.getRefreshToken(
+                        this.oauthFlow,
                         this.username
                     );
                     OAuthService oauth = new OAuthService(

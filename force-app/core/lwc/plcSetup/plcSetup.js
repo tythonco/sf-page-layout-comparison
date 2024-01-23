@@ -47,7 +47,6 @@ const SUCCESS_DELAY = 1500;
 const VALIDATION_DELAY = 6000;
 
 export default class PlcSetup extends LightningElement {
-
     authenticatedUsers = [];
     authVerified = false;
     columns = AUTH_USER_COLUMNS;
@@ -120,7 +119,9 @@ export default class PlcSetup extends LightningElement {
     async awaitAuthValidation(numAttempts) {
         numAttempts = numAttempts || 0;
         if (numAttempts >= MAX_VALIDATION_ATTEMPTS) {
-            console.error('Something went wrong validating authentication - please try again!');
+            console.error(
+                'Something went wrong validating authentication - please try again!'
+            );
         }
         if (this.authVerified) {
             return;
@@ -143,7 +144,9 @@ export default class PlcSetup extends LightningElement {
 
     async fetchDeviceFlowAuthCodes() {
         const domain = this.orgDomain;
-        const [error, results] = await safeAwait(fetchDeviceFlowAuthCodes({ domain }));
+        const [error, results] = await safeAwait(
+            fetchDeviceFlowAuthCodes({ domain })
+        );
         if (error) {
             console.error(error.body.message);
             return;
@@ -221,9 +224,13 @@ export default class PlcSetup extends LightningElement {
                 label: 'Revoke Access'
             });
             if (confirmRevoke) {
-                const usernamesToRevoke = selectedRows.map((item) => item.username);
+                const oauthFlow = this.selectedOauthFlow;
+                const usernamesToRevoke = selectedRows.map(
+                    (item) => item.username
+                );
                 const [error] = await safeAwait(
                     revokeOAuthEnabledUserAccess({
+                        oauthFlow,
                         usernamesToRevoke
                     })
                 );

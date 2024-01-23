@@ -22,16 +22,20 @@ public with sharing class OAuthCredsSelector {
         ];
     }
 
-    public static List<OAuthCreds__mdt> fetchByUsername(String username) {
-        return fetchByUsernames(new List<String>{ username });
+    public static List<OAuthCreds__mdt> fetchByUsername(
+        String oauthFlow,
+        String username
+    ) {
+        return fetchByUsernames(oauthFLow, new List<String>{ username });
     }
 
     public static List<OAuthCreds__mdt> fetchByUsernames(
+        String oauthFlow,
         List<String> usernames
     ) {
         List<String> sanitizedUsernames = new List<String>();
         for (String un : usernames) {
-            sanitizedUsernames.add(sanitize(un));
+            sanitizedUsernames.add(sanitize(oauthFlow + '_' + un));
         }
         if (Test.isRunningTest()) {
             return TEST_OAUTH_CREDS;

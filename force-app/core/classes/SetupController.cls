@@ -1,5 +1,4 @@
 public with sharing class SetupController {
-
     @AuraEnabled
     public static List<AuthenticatedUser> fetchAuthenticatedUsers(
         String oauthFlow
@@ -12,7 +11,10 @@ public with sharing class SetupController {
                 OAuthService.OAuthCredentials.class
             );
             if (creds.oauth_flow == oauthFlow) {
-                if ((creds.oauth_flow != 'device' && creds.oauth_flow != 'web') || creds.access_token != null) {
+                if (
+                    (creds.oauth_flow != 'device' &&
+                    creds.oauth_flow != 'web') || creds.access_token != null
+                ) {
                     authUsers.add(
                         new AuthenticatedUser(
                             creds.domain,
@@ -34,10 +36,15 @@ public with sharing class SetupController {
                 domain +
                 '.' +
                 URL.getOrgDomainURL().toExternalForm().substringAfter('.');
-            OAuthService oauth = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,authEndpoint);
+            OAuthService oauth = new OAuthService(
+                ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
+                authEndpoint
+            );
             return oauth.generateCodesFromDeviceFlow();
         } catch (Exception e) {
-            throw new AuraHandledException('Error Fetching Auth Codes!' + e.getMessage());
+            throw new AuraHandledException(
+                'Error Fetching Auth Codes!' + e.getMessage()
+            );
         }
     }
 
@@ -52,16 +59,16 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static void revokeOAuthEnabledUserAccess(
+        String oauthFlow,
         List<String> usernamesToRevoke
     ) {
         try {
             List<OAuthService.OAuthCredentials> credsToRevoke = new List<OAuthService.OAuthCredentials>();
             List<OAuthCreds__mdt> allOAuthCredCMDTsToRevoke = OAuthCredsSelector.fetchByUsernames(
+                oauthFlow,
                 userNamesToRevoke
             );
-            for (
-                OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke
-            ) {
+            for (OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke) {
                 OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
                     Test.isRunningTest()
                         ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
@@ -79,7 +86,8 @@ public with sharing class SetupController {
             }
         } catch (Exception e) {
             throw new AuraHandledException(
-                'Error Revoking Access for OAuth Enabled User(s)! ' + e.getMessage()
+                'Error Revoking Access for OAuth Enabled User(s)! ' +
+                e.getMessage()
             );
         }
     }
@@ -95,7 +103,10 @@ public with sharing class SetupController {
                 domain +
                 '.' +
                 URL.getOrgDomainURL().toExternalForm().substringAfter('.');
-            OAuthService oauth = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,authEndpoint);
+            OAuthService oauth = new OAuthService(
+                ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
+                authEndpoint
+            );
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromDeviceFlow(
                 deviceCode
             );
