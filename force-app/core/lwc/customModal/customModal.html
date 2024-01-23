@@ -1,0 +1,42 @@
+<template>
+    <div class={modalClass} tabindex="-1" role="dialog">
+        <div class="slds-modal__container">
+            <slot name="modalHeader">
+                <header class="slds-modal__header">
+                    <button
+                        class="
+                            slds-button slds-button_icon
+                            slds-modal__close
+                            slds-button_icon-inverse
+                        "
+                        title="Close"
+                        onclick={closeModal}
+                    >
+                        <lightning-icon
+                            icon-name="utility:close"
+                            size="small"
+                            alternative-text="Close"
+                        ></lightning-icon>
+                    </button>
+                    <h2 class="slds-text-heading_medium slds-hyphenate">
+                        {headerText}
+                    </h2>
+                </header>
+            </slot>
+            <div class="slds-modal__content slds-p-around_medium">
+                <slot>
+                    <p>Content Under Construction.</p>
+                </slot>
+            </div>
+            <slot name="modalFooter">
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Close"
+                        onclick={closeModal}
+                    ></lightning-button>
+                </footer>
+            </slot>
+        </div>
+    </div>
+    <div class={backdropClass}></div>
+</template>

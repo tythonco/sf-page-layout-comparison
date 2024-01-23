@@ -174,7 +174,6 @@ public with sharing class OAuthService {
 
         Http http = new Http();
         HTTPResponse res = http.send(req);
-
         try {
             OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
                 res.getBody(),

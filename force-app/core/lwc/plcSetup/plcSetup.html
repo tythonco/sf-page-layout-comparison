@@ -1,4 +1,89 @@
 <template>
+    <c-custom-modal
+        header-text="New OAuth Enabled User"
+        modal-size="medium"
+        onmodalclose={handleModalClose}
+    >
+        <lightning-progress-indicator
+            type="path"
+            current-step={currentStepVal}
+        >
+            <template for:each={steps} for:item="step">
+                <lightning-progress-step
+                    key={step.index}
+                    label={step.label}
+                    value={step.value}
+                >
+                </lightning-progress-step>
+            </template>
+        </lightning-progress-indicator>
+        <div class="slds-p-horizontal_large">
+            <div class="slds-p-vertical_large">
+                <div if:true={isUserDetailsStep}>
+                    <lightning-layout multiple-rows>
+                        <lightning-layout-item size="3">
+                            <lightning-input
+                                type="text"
+                                label="Org Domain"
+                                placeholder="Org Domain"
+                                field-level-help="If applicable, append sandbox name after double hyphen e.g. Domain--SandboxName"
+                                required
+                                value={orgDomain}
+                                onchange={handleDomainChange}
+                            >
+                            </lightning-input>
+                        </lightning-layout-item>
+                    </lightning-layout>
+                </div>
+                <div if:true={isAuthStep}>
+                    <div if:false={isAuthVerified}>
+                        <div>Authorization Status: Pending...</div>
+                        <div>
+                            <lightning-formatted-url
+                                value={authUrlValue}
+                                tooltip="Visit authentication URL"
+                                label={authUrlLabel}
+                                target="_blank"
+                            >
+                            </lightning-formatted-url>
+                        </div>
+                    </div>
+                    <div if:true={isAuthVerified}>
+                        <div>Authorization Status: Verified!</div>
+                    </div>
+                </div>
+                <lightning-layout class="slds-p-around_medium">
+                    <lightning-layout-item>
+                        <lightning-button
+                            disabled={isBackButtonDisabled}
+                            label="Back"
+                            class="slds-var-m-left_x-small"
+                            onclick={handlePrevious}
+                        >
+                        </lightning-button>
+                    </lightning-layout-item>
+                    <lightning-layout-item alignment-bump="left">
+                        <lightning-button
+                            if:true={displayProceedButton}
+                            variant="brand"
+                            class="slds-var-m-left_x-small"
+                            label="Next"
+                            onclick={handleProceed}
+                        >
+                        </lightning-button>
+                        <lightning-button
+                            if:true={displayDoneButton}
+                            variant="brand"
+                            class="slds-var-m-left_x-small"
+                            label="Done"
+                            onclick={handleDone}
+                        >
+                        </lightning-button>
+                    </lightning-layout-item>
+                </lightning-layout>
+            </div>
+        </div>
+    </c-custom-modal>
     <lightning-card
         title="PLC Setup"
         icon-name="custom:custom108"
@@ -14,12 +99,45 @@
                 options={oauthOptions}
             >
             </lightning-combobox>
+            <lightning-layout class="button-row">
+                <lightning-layout-item alignment-bump="left">
+                    <lightning-button
+                        class="
+                            revoke-oauth-enabled-user-access-button
+                            slds-float_right
+                            slds-p-around_xxx-small
+                        "
+                        disabled={isRevokeOAuthEnabledUserAccessDisabled}
+                        icon-name="utility:delete"
+                        label="Revoke"
+                        title="Revoke OAuth Enabled User"
+                        variant="destructive"
+                        onclick={handleRevokeOauthEnabledUserAccess}
+                    >
+                    </lightning-button>
+                </lightning-layout-item>
+                <lightning-layout-item>
+                    <lightning-button
+                        class="
+                            add-oauth-enabled-user-button
+                            slds-float_right
+                            slds-p-around_xxx-small
+                        "
+                        icon-name="utility:new"
+                        label="New"
+                        title="Add New OAuth Enabled User"
+                        variant="brand"
+                        onclick={handleAddNewOauthEnabledUser}
+                    >
+                    </lightning-button>
+                </lightning-layout-item>
+            </lightning-layout>
             <div class="auth-user-table" if:true={displayAuthUserTable}>
                 <lightning-datatable
                     key-field="username"
                     columns={columns}
                     data={rows}
-                    hide-checkbox-column="true"
+                    onrowselection={handleRowSelectionChange}
                 >
                 </lightning-datatable>
             </div>
