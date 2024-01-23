@@ -73,8 +73,8 @@ export default class PlcSetup extends LightningElement {
 
     get authUrlValue() {
         return (
-            this.orgDomainExternalUrl +
-            '/setup/connect?user_code=' +
+            this.orgDomain +
+            '.my.salesforce.com/setup/connect?user_code=' +
             this.userCode
         );
     }
