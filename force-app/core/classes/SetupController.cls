@@ -11,10 +11,7 @@ public with sharing class SetupController {
                 OAuthService.OAuthCredentials.class
             );
             if (creds.oauth_flow == oauthFlow) {
-                if (
-                    (creds.oauth_flow != 'device' &&
-                    creds.oauth_flow != 'web') || creds.access_token != null
-                ) {
+                if (creds.oauth_flow == 'jwt' || creds.access_token != null) {
                     authUsers.add(
                         new AuthenticatedUser(
                             creds.domain,
@@ -29,13 +26,33 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
+    public static Map<String, Map<String, String>> fetchConnectedAppInfo() {
+        Map<String, Map<String, String>> caInfoByName = new Map<String, Map<String, String>>();
+        List<ConnectedApp__mdt> caCMDTs = ConnectedAppSelector.fetchAll();
+        for (ConnectedApp__mdt caCMDT : caCMDTs) {
+            OAuthService.ConnectedApp ca = (OAuthService.ConnectedApp) JSON.deserialize(
+                caCMDT.Value__c,
+                OAuthService.ConnectedApp.class
+            );
+            caInfoByName.put(
+                ca.name,
+                new Map<String, String>{
+                    'client_id' => ca.client_id,
+                    'flow' => ca.flow,
+                    'id' => ca.id,
+                    'name' => ca.name,
+                    'org_id' => ca.org_id,
+                    'scope' => ca.scope
+                }
+            );
+        }
+        return caInfoByName;
+    }
+
+    @AuraEnabled
     public static Map<String, String> fetchDeviceFlowAuthCodes(String domain) {
         try {
-            String authEndpoint =
-                'https://' +
-                domain +
-                '.' +
-                URL.getOrgDomainURL().toExternalForm().substringAfter('.');
+            String authEndpoint = 'https://' + domain + '.my.salesforce.com';
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
                 authEndpoint
@@ -93,16 +110,47 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
+    public static Map<String, Object> testCredentialsFlowOrgDomainConnection(
+        String domain
+    ) {
+        try {
+            String authEndpoint = 'https://' + domain + '.my.salesforce.com';
+            OAuthService oauth = new OAuthService(
+                ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS,
+                authEndpoint
+            );
+            OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromCredentialsFlow();
+            if (resp.access_token != null) {
+                return new Map<String, Object>{
+                    'status' => 'authenticated',
+                    'is_authenticated' => true
+                };
+            } else if (resp.error != null && resp.error_description != null) {
+                return new Map<String, Object>{
+                    'status' => resp.error,
+                    'error' => resp.error,
+                    'error_description' => resp.error_description,
+                    'is_authenticated' => false
+                };
+            } else {
+                throw new AuraHandledException(
+                    'Error validating authorization to org domain via Credentials flow!'
+                );
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException(
+                'Error validating authorization to org domain via Credentials flow!'
+            );
+        }
+    }
+
+    @AuraEnabled
     public static Map<String, Object> validatePendingDeviceFlowAuthentication(
         String domain,
         String deviceCode
     ) {
         try {
-            String authEndpoint =
-                'https://' +
-                domain +
-                '.' +
-                URL.getOrgDomainURL().toExternalForm().substringAfter('.');
+            String authEndpoint = 'https://' + domain + '.my.salesforce.com';
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
                 authEndpoint

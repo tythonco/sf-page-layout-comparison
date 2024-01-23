@@ -20,25 +20,29 @@ public with sharing class OAuthService {
     );
 
     public OAuthService() {
-        this(DEFAULT_AUTH_METHOD, DEFAULT_CA, DEFAULT_DOMAIN);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_DOMAIN);
     }
 
     public OAuthService(String domain) {
-        this(DEFAULT_AUTH_METHOD, DEFAULT_CA, domain);
+        this(DEFAULT_AUTH_METHOD, domain);
     }
 
     public OAuthService(
         ToolingApiService.AUTH_METHOD authMethod,
         String domain
     ) {
-        this(authMethod, DEFAULT_CA, domain);
-    }
-
-    public OAuthService(
-        ToolingApiService.AUTH_METHOD authMethod,
-        String caName,
-        String domain
-    ) {
+        String caName;
+        switch on authMethod {
+            when OAUTH_CREDENTIALS {
+                caName = 'PLC_Credentials_Flow';
+            }
+            when OAUTH_DEVICE {
+                caName = 'PLC_Device_Flow';
+            }
+            when else {
+                caName = DEFAULT_CA;
+            }
+        }
         this.authEndpoint = domain + '/services/oauth2/token';
         this.authMethod = authMethod;
         ConnectedApp__mdt connectedApp = ConnectedAppSelector.fetchByName(
@@ -56,6 +60,9 @@ public with sharing class OAuthService {
     public static String getToken() {
         String oauthFlow;
         switch on DEFAULT_AUTH_METHOD {
+            when OAUTH_CREDENTIALS {
+                oauthFlow = 'creds';
+            }
             when OAUTH_DEVICE {
                 oauthFlow = 'device';
             }
@@ -73,6 +80,9 @@ public with sharing class OAuthService {
     public static String getRefreshToken() {
         String oauthFlow;
         switch on DEFAULT_AUTH_METHOD {
+            when OAUTH_CREDENTIALS {
+                oauthFlow = 'creds';
+            }
             when OAUTH_DEVICE {
                 oauthFlow = 'device';
             }
@@ -100,6 +110,17 @@ public with sharing class OAuthService {
             'device_code' => resp.device_code,
             'user_code' => resp.user_code
         };
+    }
+
+    public OAuthResponse generateAccessTokenFromCredentialsFlow() {
+        String body =
+            'grant_type=client_credentials&client_id=' +
+            EncodingUtil.urlEncode(this.ca.client_id, 'UTF-8') +
+            '&client_secret=' +
+            EncodingUtil.urlEncode(this.ca.client_secret, 'UTF-8');
+        return Test.isRunningTest()
+            ? TEST_OAUTH_RESP_ACCESS_TOKEN
+            : makeOAuthRequest(body);
     }
 
     public OAuthResponse generateAccessTokenFromDeviceFlow(String deviceCode) {
@@ -259,6 +280,7 @@ public with sharing class OAuthService {
 
         OAuthCredentials creds = new OAuthCredentials();
         creds.domain = authEndpoint;
+        creds.is_dev_edition = authEndpoint.contains('.develop.');
         creds.is_sandbox = authEndpoint.contains('.sandbox.');
         creds.is_scratch = authEndpoint.contains('.scratch.');
         if (authEndpoint.substringBetween('--', '.sandbox.') != null) {
@@ -276,6 +298,9 @@ public with sharing class OAuthService {
         creds.token_type = oauthResponse.token_type;
         creds.issued_at = oauthResponse.issued_at;
         switch on this.authMethod {
+            when OAUTH_CREDENTIALS {
+                creds.oauth_flow = 'creds';
+            }
             when OAUTH_DEVICE {
                 creds.oauth_flow = 'device';
             }
@@ -298,9 +323,11 @@ public with sharing class OAuthService {
         );
     }
 
-    class ConnectedApp {
+    public class ConnectedApp {
         public String client_id { get; private set; }
         public String client_secret { get; private set; }
+        public String id { get; private set; }
+        public String org_id { get; private set; }
         public String scope;
         public String flow;
         public String name { get; private set; }
@@ -329,6 +356,7 @@ public with sharing class OAuthService {
 
     public class OAuthCredentials {
         public String domain;
+        public Boolean is_dev_edition;
         public Boolean is_sandbox;
         public Boolean is_scratch;
         public String sandbox_name;

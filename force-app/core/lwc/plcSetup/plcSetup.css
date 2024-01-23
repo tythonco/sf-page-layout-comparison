@@ -3,7 +3,19 @@
 }
 
 .button-row {
-    padding-top: 2%;
+    margin-top: 2%;
+}
+
+.client-credentials-instructions {
+    margin-top: 2%;
+}
+
+.client-credentials-install-video {
+    margin-top: 2%;
+}
+
+.client-credentials-testing {
+    margin-top: 2%;
 }
 
 .container {

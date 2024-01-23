@@ -26,7 +26,7 @@
                                 type="text"
                                 label="Org Domain"
                                 placeholder="Org Domain"
-                                field-level-help="If applicable, append sandbox name after double hyphen e.g. Domain--SandboxName"
+                                field-level-help="External orgs will require remote site setting. If applicable, append sandbox name after double hyphen e.g. Domain--SandboxName. Include .sandbox .scratch or .develop for sandbox, scratch, and dev edition orgs"
                                 required
                                 value={orgDomain}
                                 onchange={handleDomainChange}
@@ -90,56 +90,115 @@
         class="container"
     >
         <div class="settings">
-            <lightning-combobox
-                dropdown-alignment="right"
-                name="oauthFlowSelector"
-                value={selectedOauthFlow}
-                label="OAuth Flow"
-                onchange={handleSelectOauthFlow}
-                options={oauthOptions}
-            >
-            </lightning-combobox>
-            <lightning-layout class="button-row">
-                <lightning-layout-item alignment-bump="left">
-                    <lightning-button
-                        class="
-                            revoke-oauth-enabled-user-access-button
-                            slds-float_right
-                            slds-p-around_xxx-small
-                        "
-                        disabled={isRevokeOAuthEnabledUserAccessDisabled}
-                        icon-name="utility:delete"
-                        label="Revoke"
-                        title="Revoke OAuth Enabled User"
-                        variant="destructive"
-                        onclick={handleRevokeOauthEnabledUserAccess}
-                    >
-                    </lightning-button>
-                </lightning-layout-item>
-                <lightning-layout-item>
-                    <lightning-button
-                        class="
-                            add-oauth-enabled-user-button
-                            slds-float_right
-                            slds-p-around_xxx-small
-                        "
-                        icon-name="utility:new"
-                        label="New"
-                        title="Add New OAuth Enabled User"
-                        variant="brand"
-                        onclick={handleAddNewOauthEnabledUser}
-                    >
-                    </lightning-button>
-                </lightning-layout-item>
-            </lightning-layout>
-            <div class="auth-user-table" if:true={displayAuthUserTable}>
-                <lightning-datatable
-                    key-field="username"
-                    columns={columns}
-                    data={rows}
-                    onrowselection={handleRowSelectionChange}
+            <div>
+                <lightning-combobox
+                    dropdown-alignment="right"
+                    name="oauthFlowSelector"
+                    value={selectedOauthFlow}
+                    label="OAuth Flow"
+                    onchange={handleSelectOauthFlow}
+                    options={oauthOptions}
                 >
-                </lightning-datatable>
+                </lightning-combobox>
+                <div if:true={isCredentialsFlowSelected}>
+                    <div class="client-credentials-testing">
+                        <lightning-layout multiple-rows vertical-align="center">
+                            <lightning-layout-item size="3">
+                                <lightning-input
+                                    type="text"
+                                    label="Org Domain"
+                                    placeholder="Org Domain"
+                                    field-level-help="External orgs will require remote site setting. If applicable, append sandbox name after double hyphen e.g. Domain--SandboxName. Include .sandbox .scratch or .develop for sandbox, scratch, and dev edition orgs"
+                                    required
+                                    value={credentialsFlowTestOrgDomain}
+                                    onchange={handleCredentialsFlowTestOrgDomainDomainChange}
+                                >
+                                </lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item size="3">
+                                <lightning-button
+                                    class="
+                                            test-client-credentials-button
+                                            slds-float_right
+                                            slds-p-around_xxx-small
+                                        "
+                                    icon-name="utility:outbound_call"
+                                    label="Test"
+                                    title="Test Connection to Org Domain"
+                                    variant="brand"
+                                    onclick={handleCredentialsFlowTestOrgDomainConnection}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                        </lightning-layout>
+                    </div>
+                </div>
+                <div>
+                    <div if:true={displayButtonRow}>
+                        <lightning-layout class="button-row">
+                            <lightning-layout-item alignment-bump="left">
+                                <lightning-button
+                                    class="
+                                        revoke-oauth-enabled-user-access-button
+                                        slds-float_right
+                                        slds-p-around_xxx-small
+                                    "
+                                    disabled={isRevokeOAuthEnabledUserAccessDisabled}
+                                    icon-name="utility:delete"
+                                    label="Revoke"
+                                    title="Revoke OAuth Enabled User"
+                                    variant="destructive"
+                                    onclick={handleRevokeOauthEnabledUserAccess}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                            <lightning-layout-item>
+                                <lightning-button
+                                    class="
+                                        add-oauth-enabled-user-button
+                                        slds-float_right
+                                        slds-p-around_xxx-small
+                                    "
+                                    icon-name="utility:new"
+                                    label="New"
+                                    title="Add New OAuth Enabled User"
+                                    variant="brand"
+                                    onclick={handleAddNewOauthEnabledUser}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                        </lightning-layout>
+                    </div>
+                    <div class="auth-user-table">
+                        <lightning-datatable
+                            key-field="username"
+                            columns={columns}
+                            data={rows}
+                            onrowselection={handleRowSelectionChange}
+                        >
+                        </lightning-datatable>
+                    </div>
+                </div>
+                <div if:true={isCredentialsFlowSelected}>
+                    <div class="client-credentials-instructions">
+                        <div>
+                            Be sure to install the connected app and then select
+                            a user for the client credentials flow to run as.
+                        </div>
+                        <div>
+                            <lightning-formatted-url
+                                value={clientCredentialsAppInstallUrlValue}
+                                tooltip="Install the connected app"
+                                label={clientCredentialsAppInstallUrlLabel}
+                                target="_blank"
+                            >
+                            </lightning-formatted-url>
+                        </div>
+                        <div class="client-credentials-install-video">
+                            <img src={installCAforCredentialsFlowGIFUrl} />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </lightning-card>

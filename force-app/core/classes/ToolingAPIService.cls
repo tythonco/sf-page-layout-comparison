@@ -2,6 +2,7 @@ public with sharing class ToolingAPIService {
     public enum AUTH_METHOD {
         CURRENT_USER_SESSIONID,
         CURRENT_USER_SESSIONID_FROM_VF,
+        OAUTH_CREDENTIALS,
         OAUTH_DEVICE
     }
 
@@ -38,6 +39,9 @@ public with sharing class ToolingAPIService {
     ) {
         this.authMethod = authMethod;
         switch on authMethod {
+            when OAUTH_CREDENTIALS {
+                this.oauthFlow = 'creds';
+            }
             when OAUTH_DEVICE {
                 this.oauthFlow = 'device';
             }
@@ -51,17 +55,31 @@ public with sharing class ToolingAPIService {
 
     public String makeCallout(String path, String contentType, String method) {
         String accessToken;
-        if (this.authMethod == AUTH_METHOD.OAUTH_DEVICE) {
-            accessToken = OAuthService.getToken(this.oauthFlow, this.username);
-        } else if (this.authMethod == AUTH_METHOD.CURRENT_USER_SESSIONID) {
-            accessToken = UserInfo.getSessionId();
-        } else if (
-            this.authMethod == AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF
-        ) {
-            Map<String, Object> sessionIdInfo = (Map<String, Object>) JSON.deserializeUntyped(
-                Page.SessionId.getContent().toString()
-            );
-            accessToken = (String) sessionIdInfo.get('sessionId');
+        switch on this.authMethod {
+            when OAUTH_CREDENTIALS {
+                accessToken = OAuthService.getToken(
+                    this.oauthFlow,
+                    this.username
+                );
+            }
+            when OAUTH_DEVICE {
+                accessToken = OAuthService.getToken(
+                    this.oauthFlow,
+                    this.username
+                );
+            }
+            when CURRENT_USER_SESSIONID {
+                accessToken = UserInfo.getSessionId();
+            }
+            when CURRENT_USER_SESSIONID_FROM_VF {
+                Map<String, Object> sessionIdInfo = (Map<String, Object>) JSON.deserializeUntyped(
+                    Page.SessionId.getContent().toString()
+                );
+                accessToken = (String) sessionIdInfo.get('sessionId');
+            }
+            when else {
+                accessToken = 'unknown';
+            }
         }
         return makeCallout(
             this.url + path,
@@ -99,6 +117,11 @@ public with sharing class ToolingAPIService {
                         this.oauthFlow,
                         this.username
                     );
+                    if (refreshToken == null) {
+                        throw new AuraHandledException(
+                            'No refresh token found for selected user; please reauthenticate from app settings and then try again.'
+                        );
+                    }
                     OAuthService oauth = new OAuthService(
                         this.authMethod,
                         this.url.substringBefore('/services')

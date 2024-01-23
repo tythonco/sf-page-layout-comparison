@@ -6,12 +6,16 @@ import LightningConfirm from 'lightning/confirm';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import fetchAuthenticatedUsers from '@salesforce/apex/SetupController.fetchAuthenticatedUsers';
+import fetchConnectedAppInfo from '@salesforce/apex/SetupController.fetchConnectedAppInfo';
 import fetchDeviceFlowAuthCodes from '@salesforce/apex/SetupController.fetchDeviceFlowAuthCodes';
 import fetchOrgDomain from '@salesforce/apex/SetupController.fetchOrgDomain';
 import revokeOAuthEnabledUserAccess from '@salesforce/apex/SetupController.revokeOAuthEnabledUserAccess';
+import testCredentialsFlowOrgDomainConnection from '@salesforce/apex/SetupController.testCredentialsFlowOrgDomainConnection';
 import validatePendingDeviceFlowAuthentication from '@salesforce/apex/SetupController.validatePendingDeviceFlowAuthentication';
 
 import { safeAwait } from 'c/plcUtils';
+
+import INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF from '@salesforce/resourceUrl/installCAforCredentialsFlow';
 
 const AUTH_USER_COLUMNS = [
     { label: 'Domain', fieldName: 'domain', type: 'text' },
@@ -22,10 +26,10 @@ const AUTH_USER_COLUMNS = [
 const MAX_VALIDATION_ATTEMPTS = 10;
 
 const OAUTH_OPTIONS = [
-    { label: 'Credentials', value: 'credentials' },
+    { label: 'Credentials', value: 'creds' },
     { label: 'Device', value: 'device' },
     { label: 'JWT (Packaged Private Key)', value: 'jwtPackagedKey' },
-    { label: 'JWT (Admin-Provided Private Key', value: 'jwtAdminProvidedKey' },
+    { label: 'JWT (Admin-Provided Private Key)', value: 'jwtAdminProvidedKey' },
     { label: 'Web Server', value: 'web' }
 ];
 
@@ -49,9 +53,13 @@ const VALIDATION_DELAY = 6000;
 export default class PlcSetup extends LightningElement {
     authenticatedUsers = [];
     authVerified = false;
+    caInfoByName;
+    clientCredentialsAppId;
+    clientCredentialsAppOrgId;
     columns = AUTH_USER_COLUMNS;
     currentStep = STEPS[0];
     deviceCode;
+    installCAforCredentialsFlowGIFUrl = INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF;
     isRevokeOAuthEnabledUserAccessDisabled = true;
     orgDomain;
     orgDomainExternalUrl;
@@ -71,12 +79,26 @@ export default class PlcSetup extends LightningElement {
         );
     }
 
+    get clientCredentialsAppInstallUrlLabel() {
+        return 'Install the connected app by clicking here';
+    }
+
+    get clientCredentialsAppInstallUrlValue() {
+        return (
+            this.orgDomainExternalUrl +
+            '/identity/app/AppInstallApprovalPage.apexp?app_id=' +
+            this.clientCredentialsAppId +
+            '&app_org_id=' +
+            this.clientCredentialsAppOrgId
+        );
+    }
+
     get currentStepVal() {
         return this.currentStep.value;
     }
 
-    get displayAuthUserTable() {
-        return this.selectedOauthFlow !== 'credentials';
+    get displayButtonRow() {
+        return this.selectedOauthFlow !== 'creds';
     }
 
     get displayDoneButton() {
@@ -99,6 +121,10 @@ export default class PlcSetup extends LightningElement {
         return this.currentStep.index === 0;
     }
 
+    get isCredentialsFlowSelected() {
+        return this.selectedOauthFlow === 'creds';
+    }
+
     get isUserDetailsStep() {
         return this.currentStep.value === 'userDetailsStep';
     }
@@ -113,6 +139,7 @@ export default class PlcSetup extends LightningElement {
 
     connectedCallback() {
         this.refreshAuthenticatedUsers();
+        this.fetchCAInfo();
         this.fetchOrgDomain();
     }
 
@@ -142,6 +169,18 @@ export default class PlcSetup extends LightningElement {
         }, VALIDATION_DELAY);
     }
 
+    async fetchCAInfo() {
+        const [error, results] = await safeAwait(fetchConnectedAppInfo());
+        if (error) {
+            console.error(error.body.message);
+            return;
+        }
+        this.caInfoByName = results;
+        this.clientCredentialsAppId = this.caInfoByName.PLC_Credentials_Flow.id;
+        this.clientCredentialsAppOrgId =
+            this.caInfoByName.PLC_Credentials_Flow.org_id;
+    }
+
     async fetchDeviceFlowAuthCodes() {
         const domain = this.orgDomain;
         const [error, results] = await safeAwait(
@@ -167,8 +206,9 @@ export default class PlcSetup extends LightningElement {
         const domainStart = results.indexOf(domainPrefix) + domainPrefix.length;
         this.orgDomain = results.substring(
             domainStart,
-            results.indexOf('.', domainStart)
+            results.indexOf('.my.', domainStart)
         );
+        this.credentialsFlowTestOrgDomain = this.orgDomain;
     }
 
     handleAddNewOauthEnabledUser() {
@@ -176,6 +216,38 @@ export default class PlcSetup extends LightningElement {
         if (modal) {
             modal.openModal();
         }
+    }
+
+    async handleCredentialsFlowTestOrgDomainConnection() {
+        const domain = this.credentialsFlowTestOrgDomain;
+        const [error] = await safeAwait(
+            testCredentialsFlowOrgDomainConnection({
+                domain
+            })
+        );
+        if (error) {
+            console.error(error.body.message);
+            const showToastEvent = new ShowToastEvent({
+                message:
+                    'Could not connect to org domain via Credentials flow; please ensure connected app is installed & configured!',
+                title: 'Test Unsuccessful',
+                variant: 'error'
+            });
+            this.dispatchEvent(showToastEvent);
+            return;
+        }
+        const showToastEvent = new ShowToastEvent({
+            message:
+                'Successfully connected to org domain via Credentials flow!',
+            title: 'Test Successful',
+            variant: 'success'
+        });
+        this.dispatchEvent(showToastEvent);
+        this.refreshTableRows();
+    }
+
+    handleCredentialsFlowTestOrgDomainDomainChange(event) {
+        this.credentialsFlowTestOrgDomain = event.detail.value;
     }
 
     handleDomainChange(event) {
@@ -303,7 +375,7 @@ export default class PlcSetup extends LightningElement {
                 item.domain.indexOf(domainPrefix) + domainPrefix.length;
             const domain = item.domain.substring(
                 domainStart,
-                item.domain.indexOf('.', domainStart)
+                item.domain.indexOf('.my.', domainStart)
             );
             return {
                 domain,
