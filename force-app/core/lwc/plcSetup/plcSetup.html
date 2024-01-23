@@ -134,24 +134,23 @@
                     </div>
                 </div>
                 <div>
-                    <div if:true={displayButtonRow}>
-                        <lightning-layout class="button-row">
-                            <lightning-layout-item alignment-bump="left">
-                                <lightning-button
-                                    class="
-                                        revoke-oauth-enabled-user-access-button
-                                        slds-float_right
-                                        slds-p-around_xxx-small
-                                    "
-                                    disabled={isRevokeOAuthEnabledUserAccessDisabled}
-                                    icon-name="utility:delete"
-                                    label="Revoke"
-                                    title="Revoke OAuth Enabled User"
-                                    variant="destructive"
-                                    onclick={handleRevokeOauthEnabledUserAccess}
-                                >
-                                </lightning-button>
-                            </lightning-layout-item>
+                    <lightning-layout class="button-row">
+                        <lightning-layout-item alignment-bump="left">
+                            <lightning-button
+                                class="
+                                    refresh-table-button
+                                    slds-float_right
+                                    slds-p-around_xxx-small
+                                "
+                                icon-name="utility:refresh"
+                                label="Refresh"
+                                title="Refresh Table"
+                                variant="brand"
+                                onclick={handleRefreshTable}
+                            >
+                            </lightning-button>
+                        </lightning-layout-item>
+                        <div if:true={displayNewAndRemoveButtons}>
                             <lightning-layout-item>
                                 <lightning-button
                                     class="
@@ -167,16 +166,40 @@
                                 >
                                 </lightning-button>
                             </lightning-layout-item>
-                        </lightning-layout>
-                    </div>
+                            <lightning-layout-item>
+                                <lightning-button
+                                    class="
+                                        revoke-oauth-enabled-user-access-button
+                                        slds-float_right
+                                        slds-p-around_xxx-small
+                                    "
+                                    disabled={isRevokeOAuthEnabledUserAccessDisabled}
+                                    icon-name="utility:delete"
+                                    label="Revoke"
+                                    title="Revoke OAuth Enabled User"
+                                    variant="destructive"
+                                    onclick={handleRevokeOauthEnabledUserAccess}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                        </div>
+                    </lightning-layout>
                     <div class="auth-user-table">
-                        <lightning-datatable
-                            key-field="username"
-                            columns={columns}
-                            data={rows}
-                            onrowselection={handleRowSelectionChange}
+                        <lightning-spinner
+                            alternative-text="Loading"
+                            size="large"
+                            if:true={isLoading}
                         >
-                        </lightning-datatable>
+                        </lightning-spinner>
+                        <div if:false={isLoading}>
+                            <lightning-datatable
+                                key-field="username"
+                                columns={columns}
+                                data={rows}
+                                onrowselection={handleRowSelectionChange}
+                            >
+                            </lightning-datatable>
+                        </div>
                     </div>
                 </div>
                 <div if:true={isCredentialsFlowSelected}>

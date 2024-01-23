@@ -51,6 +51,8 @@ const SUCCESS_DELAY = 1500;
 const VALIDATION_DELAY = 6000;
 
 export default class PlcSetup extends LightningElement {
+    _isLoading = true;
+
     authenticatedUsers = [];
     authVerified = false;
     caInfoByName;
@@ -97,7 +99,7 @@ export default class PlcSetup extends LightningElement {
         return this.currentStep.value;
     }
 
-    get displayButtonRow() {
+    get displayNewAndRemoveButtons() {
         return this.selectedOauthFlow !== 'creds';
     }
 
@@ -123,6 +125,14 @@ export default class PlcSetup extends LightningElement {
 
     get isCredentialsFlowSelected() {
         return this.selectedOauthFlow === 'creds';
+    }
+
+    get isLoading() {
+        return this._isLoading;
+    }
+
+    set isLoading(val) {
+        this._isLoading = val;
     }
 
     get isUserDetailsStep() {
@@ -243,7 +253,7 @@ export default class PlcSetup extends LightningElement {
             variant: 'success'
         });
         this.dispatchEvent(showToastEvent);
-        this.refreshTableRows();
+        this.refreshAuthenticatedUsers();
     }
 
     handleCredentialsFlowTestOrgDomainDomainChange(event) {
@@ -296,6 +306,7 @@ export default class PlcSetup extends LightningElement {
                 label: 'Revoke Access'
             });
             if (confirmRevoke) {
+                this.isLoading = true;
                 const oauthFlow = this.selectedOauthFlow;
                 const usernamesToRevoke = selectedRows.map(
                     (item) => item.username
@@ -354,7 +365,12 @@ export default class PlcSetup extends LightningElement {
         }, SUCCESS_DELAY);
     }
 
+    handleRefreshTable() {
+        this.refreshAuthenticatedUsers();
+    }
+
     async refreshAuthenticatedUsers() {
+        this.isLoading = true;
         const params = {
             oauthFlow: this.selectedOauthFlow
         };
@@ -383,5 +399,6 @@ export default class PlcSetup extends LightningElement {
                 usernameForDisplay: item.usernameForDisplay
             };
         });
+        this.isLoading = false;
     }
 }
