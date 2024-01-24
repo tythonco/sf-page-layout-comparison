@@ -42,6 +42,9 @@ public with sharing class OAuthService {
             when OAUTH_JWT_KEY_PACKAGED {
                 caName = 'PLC_JWT_Key_Packaged_Flow';
             }
+            when OAUTH_WEB_SERVER {
+                caName = 'PLC_Web_Server_Flow';
+            }
             when else {
                 caName = DEFAULT_CA;
             }
@@ -72,6 +75,9 @@ public with sharing class OAuthService {
             when OAUTH_JWT_KEY_PACKAGED {
                 oauthFlow = 'jwt_kp';
             }
+            when OAUTH_WEB_SERVER {
+                oauthFlow = 'web';
+            }
             when else {
                 oauthFlow = 'unknown';
             }
@@ -94,6 +100,9 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_KEY_PACKAGED {
                 oauthFlow = 'jwt_kp';
+            }
+            when OAUTH_WEB_SERVER {
+                oauthFlow = 'web';
             }
             when else {
                 oauthFlow = 'unknown';
@@ -339,6 +348,9 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_KEY_PACKAGED {
                 creds.oauth_flow = 'jwt_kp';
+            }
+            when OAUTH_WEB_SERVER {
+                creds.oauth_flow = 'web';
             }
             when else {
                 creds.oauth_flow = 'unknown';
