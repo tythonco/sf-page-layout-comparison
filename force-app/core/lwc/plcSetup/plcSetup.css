@@ -14,12 +14,20 @@
     margin-top: 2%;
 }
 
-.client-credentials-testing {
+.container {
+    padding: 5%;
+}
+
+.jwt-instructions {
     margin-top: 2%;
 }
 
-.container {
-    padding: 5%;
+.jwt-install-video {
+    margin-top: 2%;
+}
+
+.oauth-testing {
+    margin-top: 2%;
 }
 
 .settings {

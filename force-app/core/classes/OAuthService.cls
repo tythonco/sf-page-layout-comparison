@@ -39,6 +39,9 @@ public with sharing class OAuthService {
             when OAUTH_DEVICE {
                 caName = 'PLC_Device_Flow';
             }
+            when OAUTH_JWT_KEY_PACKAGED {
+                caName = 'PLC_JWT_Key_Packaged_Flow';
+            }
             when else {
                 caName = DEFAULT_CA;
             }
@@ -66,6 +69,9 @@ public with sharing class OAuthService {
             when OAUTH_DEVICE {
                 oauthFlow = 'device';
             }
+            when OAUTH_JWT_KEY_PACKAGED {
+                oauthFlow = 'jwt_kp';
+            }
             when else {
                 oauthFlow = 'unknown';
             }
@@ -85,6 +91,9 @@ public with sharing class OAuthService {
             }
             when OAUTH_DEVICE {
                 oauthFlow = 'device';
+            }
+            when OAUTH_JWT_KEY_PACKAGED {
+                oauthFlow = 'jwt_kp';
             }
             when else {
                 oauthFlow = 'unknown';
@@ -129,6 +138,30 @@ public with sharing class OAuthService {
             EncodingUtil.urlEncode(this.ca.client_id, 'UTF-8') +
             '&code=' +
             EncodingUtil.urlEncode(deviceCode, 'UTF-8');
+        return Test.isRunningTest()
+            ? TEST_OAUTH_RESP_ACCESS_TOKEN
+            : makeOAuthRequest(body);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
+        String username
+    ) {
+        JWTRaw jwt = new JWTRaw('RS256');
+        jwt.pkcs8 = this.ca.jwt_private_key.replace('\n', '').replace('\r', '');
+        jwt.iss = this.ca.client_id;
+        jwt.sub = username;
+        jwt.aud = this.authEndpoint.contains('.sandbox.') ||
+            this.authEndpoint.contains('.scratch.')
+            ? 'https://test.salesforce.com'
+            : 'https://login.salesforce.com';
+        String body =
+            'grant_type=' +
+            EncodingUtil.urlEncode(
+                'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'UTF-8'
+            ) +
+            '&assertion=' +
+            jwt.issue();
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
             : makeOAuthRequest(body);
@@ -304,6 +337,9 @@ public with sharing class OAuthService {
             when OAUTH_DEVICE {
                 creds.oauth_flow = 'device';
             }
+            when OAUTH_JWT_KEY_PACKAGED {
+                creds.oauth_flow = 'jwt_kp';
+            }
             when else {
                 creds.oauth_flow = 'unknown';
             }
@@ -327,6 +363,7 @@ public with sharing class OAuthService {
         public String client_id { get; private set; }
         public String client_secret { get; private set; }
         public String id { get; private set; }
+        public String jwt_private_key { get; private set; }
         public String org_id { get; private set; }
         public String scope;
         public String flow;

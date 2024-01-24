@@ -9,13 +9,16 @@ import fetchAuthenticatedUsers from '@salesforce/apex/SetupController.fetchAuthe
 import fetchConnectedAppInfo from '@salesforce/apex/SetupController.fetchConnectedAppInfo';
 import fetchDeviceFlowAuthCodes from '@salesforce/apex/SetupController.fetchDeviceFlowAuthCodes';
 import fetchOrgDomain from '@salesforce/apex/SetupController.fetchOrgDomain';
+import fetchCurrentUsername from '@salesforce/apex/SetupController.fetchCurrentUsername';
 import revokeOAuthEnabledUserAccess from '@salesforce/apex/SetupController.revokeOAuthEnabledUserAccess';
 import testCredentialsFlowOrgDomainConnection from '@salesforce/apex/SetupController.testCredentialsFlowOrgDomainConnection';
+import testJWTFlowOrgDomainConnection from '@salesforce/apex/SetupController.testJWTFlowOrgDomainConnection';
 import validatePendingDeviceFlowAuthentication from '@salesforce/apex/SetupController.validatePendingDeviceFlowAuthentication';
 
 import { safeAwait } from 'c/plcUtils';
 
 import INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF from '@salesforce/resourceUrl/installCAforCredentialsFlow';
+import INSTALL_CA_FOR_JWT_KP_FLOW_GIF from '@salesforce/resourceUrl/installCAforJWTKPFlow';
 
 const AUTH_USER_COLUMNS = [
     { label: 'Domain', fieldName: 'domain', type: 'text' },
@@ -28,8 +31,8 @@ const MAX_VALIDATION_ATTEMPTS = 10;
 const OAUTH_OPTIONS = [
     { label: 'Credentials', value: 'creds' },
     { label: 'Device', value: 'device' },
-    { label: 'JWT (Packaged Private Key)', value: 'jwtPackagedKey' },
-    { label: 'JWT (Admin-Provided Private Key)', value: 'jwtAdminProvidedKey' },
+    { label: 'JWT (Packaged Private Key)', value: 'jwt_kp' },
+    { label: 'JWT (Admin-Provided Private Key)', value: 'jwt_ak' },
     { label: 'Web Server', value: 'web' }
 ];
 
@@ -62,7 +65,12 @@ export default class PlcSetup extends LightningElement {
     currentStep = STEPS[0];
     deviceCode;
     installCAforCredentialsFlowGIFUrl = INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF;
+    installCAforJWTKeyPackagedFlowGIFUrl = INSTALL_CA_FOR_JWT_KP_FLOW_GIF;
     isRevokeOAuthEnabledUserAccessDisabled = true;
+    jwtKPAppId;
+    jwtKPAppOrgId;
+    oauthFlowTestOrgDomain;
+    oauthFlowTestUsername;
     orgDomain;
     orgDomainExternalUrl;
     selectedOauthFlow = 'device';
@@ -81,17 +89,27 @@ export default class PlcSetup extends LightningElement {
         );
     }
 
-    get clientCredentialsAppInstallUrlLabel() {
+    get caInstallUrlLabel() {
         return 'Install the connected app by clicking here';
     }
 
     get clientCredentialsAppInstallUrlValue() {
         return (
-            this.orgDomainExternalUrl +
-            '/identity/app/AppInstallApprovalPage.apexp?app_id=' +
+            this.oauthFlowTestOrgDomain +
+            '.my.salesforce.com/identity/app/AppInstallApprovalPage.apexp?app_id=' +
             this.clientCredentialsAppId +
             '&app_org_id=' +
             this.clientCredentialsAppOrgId
+        );
+    }
+
+    get jwtKeyPackagedInstallUrlValue() {
+        return (
+            this.oauthFlowTestOrgDomain +
+            '.my.salesforce.com/identity/app/AppInstallApprovalPage.apexp?app_id=' +
+            this.jwtKPAppId +
+            '&app_org_id=' +
+            this.jwtKPAppOrgId
         );
     }
 
@@ -100,7 +118,10 @@ export default class PlcSetup extends LightningElement {
     }
 
     get displayNewAndRemoveButtons() {
-        return this.selectedOauthFlow !== 'creds';
+        return (
+            this.selectedOauthFlow === 'device' ||
+            this.selectedOauthFlow === 'web'
+        );
     }
 
     get displayDoneButton() {
@@ -127,6 +148,21 @@ export default class PlcSetup extends LightningElement {
         return this.selectedOauthFlow === 'creds';
     }
 
+    get isCredentialsOrJWTFlowSelected() {
+        return (
+            this.selectedOauthFlow === 'creds' ||
+            this.selectedOauthFlow.includes('jwt')
+        );
+    }
+
+    get isJWTFlowSelected() {
+        return this.selectedOauthFlow.includes('jwt');
+    }
+
+    get isJWTKeyPackagedFlowSelected() {
+        return this.selectedOauthFlow === 'jwt_kp';
+    }
+
     get isLoading() {
         return this._isLoading;
     }
@@ -151,6 +187,7 @@ export default class PlcSetup extends LightningElement {
         this.refreshAuthenticatedUsers();
         this.fetchCAInfo();
         this.fetchOrgDomain();
+        this.fetchCurrentUser();
     }
 
     async awaitAuthValidation(numAttempts) {
@@ -189,6 +226,17 @@ export default class PlcSetup extends LightningElement {
         this.clientCredentialsAppId = this.caInfoByName.PLC_Credentials_Flow.id;
         this.clientCredentialsAppOrgId =
             this.caInfoByName.PLC_Credentials_Flow.org_id;
+        this.jwtKPAppId = this.caInfoByName.PLC_JWT_Key_Packaged_Flow.id;
+        this.jwtKPAppOrgId = this.caInfoByName.PLC_JWT_Key_Packaged_Flow.org_id;
+    }
+
+    async fetchCurrentUser() {
+        const [error, results] = await safeAwait(fetchCurrentUsername());
+        if (error) {
+            console.error(error.body.message);
+            return;
+        }
+        this.oauthFlowTestUsername = results;
     }
 
     async fetchDeviceFlowAuthCodes() {
@@ -218,7 +266,7 @@ export default class PlcSetup extends LightningElement {
             domainStart,
             results.indexOf('.my.', domainStart)
         );
-        this.credentialsFlowTestOrgDomain = this.orgDomain;
+        this.oauthFlowTestOrgDomain = this.orgDomain;
     }
 
     handleAddNewOauthEnabledUser() {
@@ -229,14 +277,18 @@ export default class PlcSetup extends LightningElement {
     }
 
     async handleCredentialsFlowTestOrgDomainConnection() {
-        const domain = this.credentialsFlowTestOrgDomain;
-        const [error] = await safeAwait(
+        const domain = this.oauthFlowTestOrgDomain;
+        const [error, results] = await safeAwait(
             testCredentialsFlowOrgDomainConnection({
                 domain
             })
         );
-        if (error) {
-            console.error(error.body.message);
+        if (error || results.error) {
+            console.error(
+                error
+                    ? error.body.message
+                    : results.error + ' ' + results.error_description
+            );
             const showToastEvent = new ShowToastEvent({
                 message:
                     'Could not connect to org domain via Credentials flow; please ensure connected app is installed & configured!',
@@ -256,8 +308,53 @@ export default class PlcSetup extends LightningElement {
         this.refreshAuthenticatedUsers();
     }
 
-    handleCredentialsFlowTestOrgDomainDomainChange(event) {
-        this.credentialsFlowTestOrgDomain = event.detail.value;
+    async handleJWTFlowTestOrgDomainConnection() {
+        const domain = this.oauthFlowTestOrgDomain;
+        const username = this.oauthFlowTestUsername;
+        const [error, results] = await safeAwait(
+            testJWTFlowOrgDomainConnection({
+                domain,
+                username
+            })
+        );
+        if (error || results.error) {
+            console.error(
+                error
+                    ? error.body.message
+                    : results.error + ' ' + results.error_description
+            );
+            const showToastEvent = new ShowToastEvent({
+                message:
+                    'Could not connect to org domain via JWT flow; please ensure connected app is installed & user is pre-authorized!',
+                title: 'Test Unsuccessful',
+                variant: 'error'
+            });
+            this.dispatchEvent(showToastEvent);
+            return;
+        }
+        const showToastEvent = new ShowToastEvent({
+            message: 'Successfully connected to org domain via JWT flow!',
+            title: 'Test Successful',
+            variant: 'success'
+        });
+        this.dispatchEvent(showToastEvent);
+        this.refreshAuthenticatedUsers();
+    }
+
+    handleOauthFlowTestOrgDomainConnection() {
+        if (this.selectedOauthFlow.includes('jwt')) {
+            this.handleJWTFlowTestOrgDomainConnection();
+        } else if (this.selectedOauthFlow === 'creds') {
+            this.handleCredentialsFlowTestOrgDomainConnection();
+        }
+    }
+
+    handleOauthFlowTestOrgDomainChange(event) {
+        this.oauthFlowTestOrgDomain = event.detail.value;
+    }
+
+    handleOauthFlowTestUsernameChange(event) {
+        this.oauthFlowTestUsername = event.detail.value;
     }
 
     handleDomainChange(event) {

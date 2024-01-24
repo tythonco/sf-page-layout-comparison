@@ -3,7 +3,8 @@ public with sharing class ToolingAPIService {
         CURRENT_USER_SESSIONID,
         CURRENT_USER_SESSIONID_FROM_VF,
         OAUTH_CREDENTIALS,
-        OAUTH_DEVICE
+        OAUTH_DEVICE,
+        OAUTH_JWT_KEY_PACKAGED
     }
 
     public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH_DEVICE;
@@ -45,6 +46,9 @@ public with sharing class ToolingAPIService {
             when OAUTH_DEVICE {
                 this.oauthFlow = 'device';
             }
+            when OAUTH_JWT_KEY_PACKAGED {
+                this.oauthFlow = 'jwt_kp';
+            }
             when else {
                 this.oauthFlow = 'unknown';
             }
@@ -63,6 +67,12 @@ public with sharing class ToolingAPIService {
                 );
             }
             when OAUTH_DEVICE {
+                accessToken = OAuthService.getToken(
+                    this.oauthFlow,
+                    this.username
+                );
+            }
+            when OAUTH_JWT_KEY_PACKAGED {
                 accessToken = OAuthService.getToken(
                     this.oauthFlow,
                     this.username
