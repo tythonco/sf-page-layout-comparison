@@ -378,6 +378,7 @@ public with sharing class OAuthService {
         public String jwt_private_key { get; private set; }
         public String org_id { get; private set; }
         public String scope;
+        public String server_domain { get; private set; }
         public String flow;
         public String name { get; private set; }
     }

@@ -3,7 +3,10 @@
 #
 
 # Sample Connected App CMDT Records
+ConnectedApp.PLC_Credentials_Flow.md-meta.xml.sample
 ConnectedApp.PLC_Device_Flow.md-meta.xml.sample
+ConnectedApp.PLC_JWT_Key_Packaged_Flow.md-meta.xml.sample
+ConnectedApp.PLC_Web_Server_Flow.md-meta.xml.sample
 
 # Standard metadata
 package.xml

@@ -44,10 +44,6 @@
         <apexClass>ToolingAPIService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <classAccesses>
-        <apexClass>UserSelector</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
     <pageAccesses>
         <apexPage>SessionId</apexPage>
         <enabled>true</enabled>

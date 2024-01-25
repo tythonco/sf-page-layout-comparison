@@ -100,7 +100,7 @@
                     options={oauthOptions}
                 >
                 </lightning-combobox>
-                <div if:true={isCredentialsOrJWTFlowSelected}>
+                <div if:true={isCredentialsOrJWTOrWebFlowSelected}>
                     <div class="oauth-testing">
                         <lightning-layout multiple-rows vertical-align="end">
                             <lightning-layout-item
@@ -134,7 +134,27 @@
                                 >
                                 </lightning-input>
                             </lightning-layout-item>
-                            <lightning-layout-item size="3">
+                            <lightning-layout-item
+                                if:true={isWebFlowSelected}
+                                size="3"
+                            >
+                                <lightning-button
+                                    class="
+                                            authenticate-oauth-credentials-button
+                                            slds-p-around_xxx-small
+                                        "
+                                    icon-name="utility:unlock"
+                                    label="Authenticate"
+                                    title="Authenticate with Org Domain"
+                                    variant="brand"
+                                    onclick={handleOauthFlowTestOrgDomainConnection}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                            <lightning-layout-item
+                                if:true={isCredentialsOrJWTFlowSelected}
+                                size="3"
+                            >
                                 <lightning-button
                                     class="
                                             test-oauth-credentials-button
@@ -168,7 +188,7 @@
                             >
                             </lightning-button>
                         </lightning-layout-item>
-                        <div if:true={displayNewAndRemoveButtons}>
+                        <div if:true={displayNewButton}>
                             <lightning-layout-item>
                                 <lightning-button
                                     class="
@@ -184,23 +204,23 @@
                                 >
                                 </lightning-button>
                             </lightning-layout-item>
-                            <lightning-layout-item>
-                                <lightning-button
-                                    class="
-                                        revoke-oauth-enabled-user-access-button
-                                        slds-float_right
-                                        slds-p-around_xxx-small
-                                    "
-                                    disabled={isRevokeOAuthEnabledUserAccessDisabled}
-                                    icon-name="utility:delete"
-                                    label="Revoke"
-                                    title="Revoke OAuth Enabled User"
-                                    variant="destructive"
-                                    onclick={handleRevokeOauthEnabledUserAccess}
-                                >
-                                </lightning-button>
-                            </lightning-layout-item>
                         </div>
+                        <lightning-layout-item>
+                            <lightning-button
+                                class="
+                                    revoke-oauth-enabled-user-access-button
+                                    slds-float_right
+                                    slds-p-around_xxx-small
+                                "
+                                disabled={isRevokeOAuthEnabledUserAccessDisabled}
+                                icon-name="utility:delete"
+                                label="Revoke"
+                                title="Revoke OAuth Enabled User"
+                                variant="destructive"
+                                onclick={handleRevokeOauthEnabledUserAccess}
+                            >
+                            </lightning-button>
+                        </lightning-layout-item>
                     </lightning-layout>
                     <div class="auth-user-table">
                         <lightning-spinner

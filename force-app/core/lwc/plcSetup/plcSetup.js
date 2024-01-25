@@ -117,11 +117,8 @@ export default class PlcSetup extends LightningElement {
         return this.currentStep.value;
     }
 
-    get displayNewAndRemoveButtons() {
-        return (
-            this.selectedOauthFlow === 'device' ||
-            this.selectedOauthFlow === 'web'
-        );
+    get displayNewButton() {
+        return this.selectedOauthFlow === 'device';
     }
 
     get displayDoneButton() {
@@ -155,6 +152,14 @@ export default class PlcSetup extends LightningElement {
         );
     }
 
+    get isCredentialsOrJWTOrWebFlowSelected() {
+        return (
+            this.selectedOauthFlow === 'creds' ||
+            this.selectedOauthFlow.includes('jwt') ||
+            this.selectedOauthFlow === 'web'
+        );
+    }
+
     get isJWTFlowSelected() {
         return this.selectedOauthFlow.includes('jwt');
     }
@@ -173,6 +178,10 @@ export default class PlcSetup extends LightningElement {
 
     get isUserDetailsStep() {
         return this.currentStep.value === 'userDetailsStep';
+    }
+
+    get isWebFlowSelected() {
+        return this.selectedOauthFlow === 'web';
     }
 
     get oauthOptions() {
@@ -228,6 +237,8 @@ export default class PlcSetup extends LightningElement {
             this.caInfoByName.PLC_Credentials_Flow.org_id;
         this.jwtKPAppId = this.caInfoByName.PLC_JWT_Key_Packaged_Flow.id;
         this.jwtKPAppOrgId = this.caInfoByName.PLC_JWT_Key_Packaged_Flow.org_id;
+        this.webFlowServerDomain =
+            this.caInfoByName.PLC_Web_Server_Flow.server_domain;
     }
 
     async fetchCurrentUser() {
@@ -346,6 +357,8 @@ export default class PlcSetup extends LightningElement {
             this.handleJWTFlowTestOrgDomainConnection();
         } else if (this.selectedOauthFlow === 'creds') {
             this.handleCredentialsFlowTestOrgDomainConnection();
+        } else if (this.selectedOauthFlow === 'web') {
+            this.handleWebFlowAuthenticateOrgDomainConnection();
         }
     }
 
@@ -464,6 +477,20 @@ export default class PlcSetup extends LightningElement {
 
     handleRefreshTable() {
         this.refreshAuthenticatedUsers();
+    }
+
+    async handleWebFlowAuthenticateOrgDomainConnection() {
+        const source = encodeURIComponent(this.orgDomainExternalUrl);
+        const target = encodeURIComponent(
+            'https://' + this.oauthFlowTestOrgDomain + '.my.salesforce.com'
+        );
+        const webFlowServerUrl =
+            this.webFlowServerDomain +
+            '?source=' +
+            source +
+            '&target=' +
+            target;
+        window.open(webFlowServerUrl, '_blank').focus();
     }
 
     async refreshAuthenticatedUsers() {

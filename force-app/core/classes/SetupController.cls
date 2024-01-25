@@ -42,7 +42,8 @@ public with sharing class SetupController {
                     'id' => ca.id,
                     'name' => ca.name,
                     'org_id' => ca.org_id,
-                    'scope' => ca.scope
+                    'scope' => ca.scope,
+                    'server_domain' => ca.server_domain
                 }
             );
         }

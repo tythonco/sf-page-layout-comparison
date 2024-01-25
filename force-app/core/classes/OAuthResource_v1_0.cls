@@ -13,7 +13,12 @@ global with sharing class OAuthResource_v1_0 {
             responseMap.put('success', true);
             res.statusCode = 200;
         } catch (Exception e) {
-            responseMap.put('error', e.getMessage());
+            responseMap.put(
+                'error',
+                e.getMessage() +
+                ' ' +
+                e.getStackTraceString()
+            );
             res.statusCode = 500;
         }
         res.addHeader('Content-Type', 'application/json');
@@ -23,8 +28,6 @@ global with sharing class OAuthResource_v1_0 {
     private static void upsertOAuthCredsCMDT(Map<String, Object> params) {
         OAuthService.OAuthCredentials creds = new OAuthService.OAuthCredentials();
         String domain = (String) params.get('domain');
-        String userId = (String) params.get('user_id');
-        User u = UserSelector.fetchById(userId);
         creds.domain = domain;
         creds.is_dev_edition = domain.contains('.develop.');
         creds.is_sandbox = domain.contains('.sandbox.');
@@ -41,10 +44,10 @@ global with sharing class OAuthResource_v1_0 {
         creds.instance_url = (String) params.get('instance_url');
         creds.oauth_flow = 'web';
         creds.organization_id = (String) params.get('organization_id');
-        creds.user_id = u.Id;
-        creds.user_username = u.Username;
-        creds.user_display_name = u.Name;
-        creds.user_email = u.Email;
+        creds.user_id = (String) params.get('user_id');
+        creds.user_username = (String) params.get('user_username');
+        creds.user_display_name = (String) params.get('user_display_name');
+        creds.user_email = (String) params.get('user_email');
         creds.id =
             identityDomain +
             '/id/' +
