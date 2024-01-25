@@ -156,18 +156,38 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static Map<String, Object> testJWTFlowOrgDomainConnection(
-        String domain,
-        String username
+        Map<String, String> params
     ) {
         try {
+            String domain = params.get('domain');
+            String flow = params.get('flow');
+            String username = params.get('username');
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
-            OAuthService oauth = new OAuthService(
-                ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED,
-                authEndpoint
-            );
-            OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(
-                username
-            );
+            OAuthService oauth;
+            OAuthService.OAuthResponse resp;
+            if (flow == 'jwt_kp') {
+                // Packaged Key
+                oauth = new OAuthService(
+                    ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED,
+                    authEndpoint
+                );
+                resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(
+                    username
+                );
+            } else if (flow == 'jwt_ak') {
+                // Admin Key
+                String certName = params.get('certName');
+                String consumerKey = params.get('consumerKey');
+                oauth = new OAuthService(
+                    ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY,
+                    authEndpoint
+                );
+                resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(
+                    certName,
+                    consumerKey,
+                    username
+                );
+            }
             if (resp.access_token != null) {
                 return new Map<String, Object>{
                     'status' => 'authenticated',
@@ -182,12 +202,12 @@ public with sharing class SetupController {
                 };
             } else {
                 throw new AuraHandledException(
-                    'Error validating authorization to org domain via Credentials flow!'
+                    'Error validating authorization to org domain via JWT flow!'
                 );
             }
         } catch (Exception e) {
             throw new AuraHandledException(
-                'Error validating authorization to org domain via Credentials flow!'
+                'Error validating authorization to org domain via JWT flow!'
             );
         }
     }

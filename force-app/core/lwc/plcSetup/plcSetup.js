@@ -69,6 +69,8 @@ export default class PlcSetup extends LightningElement {
     isRevokeOAuthEnabledUserAccessDisabled = true;
     jwtKPAppId;
     jwtKPAppOrgId;
+    oauthFlowTestCertName;
+    oauthFlowTestConsumerKey;
     oauthFlowTestOrgDomain;
     oauthFlowTestUsername;
     orgDomain;
@@ -158,6 +160,10 @@ export default class PlcSetup extends LightningElement {
             this.selectedOauthFlow.includes('jwt') ||
             this.selectedOauthFlow === 'web'
         );
+    }
+
+    get isJWTAdminKeyFlowSelected() {
+        return this.selectedOauthFlow === 'jwt_ak';
     }
 
     get isJWTFlowSelected() {
@@ -320,12 +326,22 @@ export default class PlcSetup extends LightningElement {
     }
 
     async handleJWTFlowTestOrgDomainConnection() {
+        const certName = this.oauthFlowTestCertName;
+        const consumerKey = this.oauthFlowTestConsumerKey;
         const domain = this.oauthFlowTestOrgDomain;
         const username = this.oauthFlowTestUsername;
+        let params = {
+            domain,
+            username
+        };
+        if (this.selectedOauthFlow === 'jwt_ak') {
+            params.certName = certName;
+            params.consumerKey = consumerKey;
+        }
+        params.flow = this.selectedOauthFlow;
         const [error, results] = await safeAwait(
             testJWTFlowOrgDomainConnection({
-                domain,
-                username
+                params
             })
         );
         if (error || results.error) {
@@ -350,6 +366,14 @@ export default class PlcSetup extends LightningElement {
         });
         this.dispatchEvent(showToastEvent);
         this.refreshAuthenticatedUsers();
+    }
+
+    handleOauthFlowTestCertNameChange(event) {
+        this.oauthFlowTestCertName = event.detail.value;
+    }
+
+    handleOauthFlowTestConsumerKeyChange(event) {
+        this.oauthFlowTestConsumerKey = event.detail.value;
     }
 
     handleOauthFlowTestOrgDomainConnection() {

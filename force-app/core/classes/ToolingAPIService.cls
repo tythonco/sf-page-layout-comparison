@@ -4,6 +4,7 @@ public with sharing class ToolingAPIService {
         CURRENT_USER_SESSIONID_FROM_VF,
         OAUTH_CREDENTIALS,
         OAUTH_DEVICE,
+        OAUTH_JWT_ADMIN_KEY,
         OAUTH_JWT_KEY_PACKAGED,
         OAUTH_WEB_SERVER
     }
@@ -50,6 +51,9 @@ public with sharing class ToolingAPIService {
             when OAUTH_JWT_KEY_PACKAGED {
                 this.oauthFlow = 'jwt_kp';
             }
+            when OAUTH_JWT_ADMIN_KEY {
+                this.oauthFlow = 'jwt_ak';
+            }
             when OAUTH_WEB_SERVER {
                 this.oauthFlow = 'web';
             }
@@ -64,30 +68,6 @@ public with sharing class ToolingAPIService {
     public String makeCallout(String path, String contentType, String method) {
         String accessToken;
         switch on this.authMethod {
-            when OAUTH_CREDENTIALS {
-                accessToken = OAuthService.getToken(
-                    this.oauthFlow,
-                    this.username
-                );
-            }
-            when OAUTH_DEVICE {
-                accessToken = OAuthService.getToken(
-                    this.oauthFlow,
-                    this.username
-                );
-            }
-            when OAUTH_JWT_KEY_PACKAGED {
-                accessToken = OAuthService.getToken(
-                    this.oauthFlow,
-                    this.username
-                );
-            }
-            when OAUTH_WEB_SERVER {
-                accessToken = OAuthService.getToken(
-                    this.oauthFlow,
-                    this.username
-                );
-            }
             when CURRENT_USER_SESSIONID {
                 accessToken = UserInfo.getSessionId();
             }
@@ -98,7 +78,10 @@ public with sharing class ToolingAPIService {
                 accessToken = (String) sessionIdInfo.get('sessionId');
             }
             when else {
-                accessToken = 'unknown';
+                accessToken = OAuthService.getToken(
+                    this.oauthFlow,
+                    this.username
+                );
             }
         }
         return makeCallout(

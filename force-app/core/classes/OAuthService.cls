@@ -75,6 +75,9 @@ public with sharing class OAuthService {
             when OAUTH_JWT_KEY_PACKAGED {
                 oauthFlow = 'jwt_kp';
             }
+            when OAUTH_JWT_ADMIN_KEY {
+                oauthFlow = 'jwt_ak';
+            }
             when OAUTH_WEB_SERVER {
                 oauthFlow = 'web';
             }
@@ -100,6 +103,9 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_KEY_PACKAGED {
                 oauthFlow = 'jwt_kp';
+            }
+            when OAUTH_JWT_ADMIN_KEY {
+                oauthFlow = 'jwt_ak';
             }
             when OAUTH_WEB_SERVER {
                 oauthFlow = 'web';
@@ -150,6 +156,50 @@ public with sharing class OAuthService {
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
             : makeOAuthRequest(body);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTAdminKeyFlow(
+        String certName,
+        String consumerKey,
+        String username
+    ) {
+        Auth.JWT jwt = new Auth.JWT();
+        jwt.setIss(consumerKey);
+        jwt.setSub(username);
+        jwt.setAud(
+            this.authEndpoint.contains('.sandbox.') ||
+                this.authEndpoint.contains('.scratch.')
+                ? 'https://test.salesforce.com'
+                : 'https://login.salesforce.com'
+        );
+        Auth.JWS jws = new Auth.JWS(jwt, certName);
+        if (Test.isRunningTest()) {
+            return TEST_OAUTH_RESP_ACCESS_TOKEN;
+        } else {
+            Auth.JWTBearerTokenExchange bearer = new Auth.JWTBearerTokenExchange(
+                this.authEndpoint,
+                jws
+            );
+            HttpResponse res = bearer.getHttpResponse();
+            try {
+                OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
+                    res.getBody(),
+                    OAuthResponse.class
+                );
+
+                if (res.getStatusCode() == 200 && oauthResponse.id != null) {
+                    saveOAuthResponse(oauthResponse);
+                }
+                return oauthResponse;
+            } catch (System.Exception e) {
+                throw new OAuthException(
+                    'OAuth Failure: ' +
+                    res.getStatusCode() +
+                    ' Body:' +
+                    res.getBody()
+                );
+            }
+        }
     }
 
     public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
@@ -348,6 +398,9 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_KEY_PACKAGED {
                 creds.oauth_flow = 'jwt_kp';
+            }
+            when OAUTH_JWT_ADMIN_KEY {
+                creds.oauth_flow = 'jwt_ak';
             }
             when OAUTH_WEB_SERVER {
                 creds.oauth_flow = 'web';

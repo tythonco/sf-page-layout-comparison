@@ -135,6 +135,38 @@
                                 </lightning-input>
                             </lightning-layout-item>
                             <lightning-layout-item
+                                if:true={isJWTAdminKeyFlowSelected}
+                                class="slds-p-right_small"
+                                size="2"
+                            >
+                                <lightning-input
+                                    type="text"
+                                    label="CA Certificate Name"
+                                    placeholder="Certificate"
+                                    field-level-help="After creating a digital certificate in Salesforce for your CA, enter the certificate name here"
+                                    required
+                                    value={oauthFlowTestCertName}
+                                    onchange={handleOauthFlowTestCertNameChange}
+                                >
+                                </lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item
+                                if:true={isJWTAdminKeyFlowSelected}
+                                class="slds-p-right_small"
+                                size="3"
+                            >
+                                <lightning-input
+                                    type="text"
+                                    label="CA Consumer Key"
+                                    placeholder="Key"
+                                    field-level-help="After creating a Connected App, enter its consumer key value here"
+                                    required
+                                    value={oauthFlowTestConsumerKey}
+                                    onchange={handleOauthFlowTestConsumerKeyChange}
+                                >
+                                </lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item
                                 if:true={isWebFlowSelected}
                                 size="3"
                             >
@@ -153,7 +185,7 @@
                             </lightning-layout-item>
                             <lightning-layout-item
                                 if:true={isCredentialsOrJWTFlowSelected}
-                                size="3"
+                                size="1"
                             >
                                 <lightning-button
                                     class="
@@ -260,7 +292,17 @@
                         </div>
                     </div>
                 </div>
-                <div if:true={isJWTFlowSelected}>
+                <div if:true={isJWTAdminKeyFlowSelected}>
+                    <div class="jwt-instructions">
+                        <div>
+                            Be sure to create a digital certificate within
+                            Salesforce and associate it with a new connected
+                            app. Then you will need to pre-authorize users via
+                            their profile or an assigned permission set.
+                        </div>
+                    </div>
+                </div>
+                <div if:true={isJWTKeyPackagedFlowSelected}>
                     <div class="jwt-instructions">
                         <div>
                             Be sure to install the connected app and then
