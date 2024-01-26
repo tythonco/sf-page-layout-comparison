@@ -41,7 +41,7 @@
                         <div>
                             <lightning-formatted-url
                                 value={authUrlValue}
-                                tooltip="Visit authentication URL"
+                                tooltip="Visit authorization URL"
                                 label={authUrlLabel}
                                 target="_blank"
                             >
@@ -172,12 +172,12 @@
                             >
                                 <lightning-button
                                     class="
-                                            authenticate-oauth-credentials-button
+                                            authorize-oauth-credentials-button
                                             slds-p-around_xxx-small
                                         "
                                     icon-name="utility:unlock"
-                                    label="Authenticate"
-                                    title="Authenticate with Org Domain"
+                                    label="Authorize"
+                                    title="Authorize with Org Domain"
                                     variant="brand"
                                     onclick={handleOauthFlowTestOrgDomainConnection}
                                 >

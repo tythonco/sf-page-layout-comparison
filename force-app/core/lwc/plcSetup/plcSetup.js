@@ -5,7 +5,7 @@ import { LightningElement, track } from 'lwc';
 import LightningConfirm from 'lightning/confirm';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
-import fetchAuthenticatedUsers from '@salesforce/apex/SetupController.fetchAuthenticatedUsers';
+import fetchAuthorizedUsers from '@salesforce/apex/SetupController.fetchAuthorizedUsers';
 import fetchConnectedAppInfo from '@salesforce/apex/SetupController.fetchConnectedAppInfo';
 import fetchDeviceFlowAuthCodes from '@salesforce/apex/SetupController.fetchDeviceFlowAuthCodes';
 import fetchOrgDomain from '@salesforce/apex/SetupController.fetchOrgDomain';
@@ -13,7 +13,7 @@ import fetchCurrentUsername from '@salesforce/apex/SetupController.fetchCurrentU
 import revokeOAuthEnabledUserAccess from '@salesforce/apex/SetupController.revokeOAuthEnabledUserAccess';
 import testCredentialsFlowOrgDomainConnection from '@salesforce/apex/SetupController.testCredentialsFlowOrgDomainConnection';
 import testJWTFlowOrgDomainConnection from '@salesforce/apex/SetupController.testJWTFlowOrgDomainConnection';
-import validatePendingDeviceFlowAuthentication from '@salesforce/apex/SetupController.validatePendingDeviceFlowAuthentication';
+import validatePendingDeviceFlowAuthorization from '@salesforce/apex/SetupController.validatePendingDeviceFlowAuthorization';
 
 import { safeAwait } from 'c/plcUtils';
 
@@ -44,7 +44,7 @@ const STEPS = [
     },
     {
         index: 1,
-        label: 'Authentication',
+        label: 'Authorization',
         value: 'authStep'
     }
 ];
@@ -56,7 +56,7 @@ const VALIDATION_DELAY = 6000;
 export default class PlcSetup extends LightningElement {
     _isLoading = true;
 
-    authenticatedUsers = [];
+    authorizedUsers = [];
     authVerified = false;
     caInfoByName;
     clientCredentialsAppId;
@@ -80,7 +80,7 @@ export default class PlcSetup extends LightningElement {
     userCode;
 
     get authUrlLabel() {
-        return 'Visit authentication URL and enter code: ' + this.userCode;
+        return 'Visit authorization URL and enter code: ' + this.userCode;
     }
 
     get authUrlValue() {
@@ -199,7 +199,7 @@ export default class PlcSetup extends LightningElement {
     }
 
     connectedCallback() {
-        this.refreshAuthenticatedUsers();
+        this.refreshAuthorizedUsers();
         this.fetchCAInfo();
         this.fetchOrgDomain();
         this.fetchCurrentUser();
@@ -209,7 +209,7 @@ export default class PlcSetup extends LightningElement {
         numAttempts = numAttempts || 0;
         if (numAttempts >= MAX_VALIDATION_ATTEMPTS) {
             console.error(
-                'Something went wrong validating authentication - please try again!'
+                'Something went wrong validating authorization - please try again!'
             );
         }
         if (this.authVerified) {
@@ -218,13 +218,13 @@ export default class PlcSetup extends LightningElement {
         const domain = this.orgDomain;
         const deviceCode = this.deviceCode;
         const [error, results] = await safeAwait(
-            validatePendingDeviceFlowAuthentication({ domain, deviceCode })
+            validatePendingDeviceFlowAuthorization({ domain, deviceCode })
         );
         if (error) {
             console.error(error.body.message);
         }
-        if (results.is_authenticated) {
-            return this.handleSuccessfulAuthentication();
+        if (results.is_authorized) {
+            return this.handleSuccessfulAuthorization();
         }
         window.setTimeout(() => {
             return this.awaitAuthValidation(numAttempts + 1);
@@ -322,7 +322,7 @@ export default class PlcSetup extends LightningElement {
             variant: 'success'
         });
         this.dispatchEvent(showToastEvent);
-        this.refreshAuthenticatedUsers();
+        this.refreshAuthorizedUsers();
     }
 
     async handleJWTFlowTestOrgDomainConnection() {
@@ -365,7 +365,7 @@ export default class PlcSetup extends LightningElement {
             variant: 'success'
         });
         this.dispatchEvent(showToastEvent);
-        this.refreshAuthenticatedUsers();
+        this.refreshAuthorizedUsers();
     }
 
     handleOauthFlowTestCertNameChange(event) {
@@ -382,7 +382,7 @@ export default class PlcSetup extends LightningElement {
         } else if (this.selectedOauthFlow === 'creds') {
             this.handleCredentialsFlowTestOrgDomainConnection();
         } else if (this.selectedOauthFlow === 'web') {
-            this.handleWebFlowAuthenticateOrgDomainConnection();
+            this.handleWebFlowAuthorizeOrgDomainConnection();
         }
     }
 
@@ -402,7 +402,7 @@ export default class PlcSetup extends LightningElement {
         const modal = this.template.querySelector('c-custom-modal');
         if (modal) {
             modal.closeModal();
-            this.refreshAuthenticatedUsers();
+            this.refreshAuthorizedUsers();
         }
     }
 
@@ -455,7 +455,7 @@ export default class PlcSetup extends LightningElement {
                     console.error(error.body.message);
                     return;
                 }
-                this.authenticatedUsers = this.authenticatedUsers.filter(
+                this.authorizedUsers = this.authorizedUsers.filter(
                     (el) => !usernamesToRevoke.includes(el.username)
                 );
                 this.refreshTableRows();
@@ -483,16 +483,16 @@ export default class PlcSetup extends LightningElement {
 
     handleSelectOauthFlow(event) {
         this.selectedOauthFlow = event.detail.value;
-        this.refreshAuthenticatedUsers();
+        this.refreshAuthorizedUsers();
     }
 
-    handleSuccessfulAuthentication() {
+    handleSuccessfulAuthorization() {
         // Delay displaying success message to allow time for CMDT to deploy to org
         window.setTimeout(() => {
             this.authVerified = true;
             const showToastEvent = new ShowToastEvent({
                 message: 'Successfully created new OAuth enabled user!',
-                title: 'Authentication Verified',
+                title: 'Authorization Verified',
                 variant: 'success'
             });
             this.dispatchEvent(showToastEvent);
@@ -500,10 +500,10 @@ export default class PlcSetup extends LightningElement {
     }
 
     handleRefreshTable() {
-        this.refreshAuthenticatedUsers();
+        this.refreshAuthorizedUsers();
     }
 
-    async handleWebFlowAuthenticateOrgDomainConnection() {
+    async handleWebFlowAuthorizeOrgDomainConnection() {
         const source = encodeURIComponent(this.orgDomainExternalUrl);
         const target = encodeURIComponent(
             'https://' + this.oauthFlowTestOrgDomain + '.my.salesforce.com'
@@ -517,23 +517,21 @@ export default class PlcSetup extends LightningElement {
         window.open(webFlowServerUrl, '_blank').focus();
     }
 
-    async refreshAuthenticatedUsers() {
+    async refreshAuthorizedUsers() {
         this.isLoading = true;
         const params = {
             oauthFlow: this.selectedOauthFlow
         };
-        const [error, results] = await safeAwait(
-            fetchAuthenticatedUsers(params)
-        );
+        const [error, results] = await safeAwait(fetchAuthorizedUsers(params));
         if (error) {
             console.error(error.body.message);
         }
-        this.authenticatedUsers = results;
+        this.authorizedUsers = results;
         this.refreshTableRows();
     }
 
     refreshTableRows() {
-        this.rows = this.authenticatedUsers.map((item) => {
+        this.rows = this.authorizedUsers.map((item) => {
             const domainPrefix = 'https://';
             const domainStart =
                 item.domain.indexOf(domainPrefix) + domainPrefix.length;

@@ -14,13 +14,13 @@ fi
 
 DEVHUB_NAME="${PROJECT_NAME}DevHub"
 
-echo "Authenticating to DevHub org..."
+echo "Authorizing with DevHub org..."
 sf org login web -d -a ${DEVHUB_NAME} -r https://login.salesforce.com
 
 if [ "$?" = "1" ]
 then
-	echo "" && echo "ERROR: Authorizization with the ${DEVHUB_NAME} org failed!"
+	echo "" && echo "ERROR: Authorization with the ${DEVHUB_NAME} org failed!"
 	exit
 else
-    echo "" && echo "SUCCESS: Authenticated to project DevHub org!" && echo ""
+    echo "" && echo "SUCCESS: Authorized with project DevHub org!" && echo ""
 fi

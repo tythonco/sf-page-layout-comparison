@@ -6,7 +6,7 @@
 
 1. Run `npm install` to bring in all development dependencies.
 
-2. Run `npm run setup` for Org Authentication - you will need the project auth key from 1Password
+2. Run `npm run setup` for Org Authorization - you will need the project auth key from 1Password
 
 ## Dev/Build
 

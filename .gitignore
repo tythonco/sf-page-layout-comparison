@@ -4,7 +4,7 @@
 
 force-app/core/customMetadata/ConnectedApp*.md-meta.xml
 
-# Org Authentication files
+# Org Auth files
 server.crt
 server.key
 *auth_url.txt

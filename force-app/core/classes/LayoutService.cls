@@ -1,9 +1,17 @@
 public with sharing class LayoutService {
-    private static final ToolingAPIService.AUTH_METHOD authMethod = ToolingAPIService.AUTH_METHOD.OAUTH;
-
     @AuraEnabled
-    public static String getLayoutsForObject(String objectName) {
-        ToolingAPIService api = new ToolingAPIService(authMethod);
+    public static String getLayoutsForObject(
+        ToolingAPIService.AUTH_METHOD authMethod,
+        String domain,
+        String username,
+        String objectName
+    ) {
+        ToolingAPIService api = new ToolingAPIService(
+            authMethod,
+            domain,
+            username,
+            ToolingApiService.DEFAULT_VERSION
+        );
         String path =
             'query?q=SELECT+Id,Name,NamespacePrefix,ManageableState,TableEnumOrId,LayoutType,CreatedDate,CreatedById,LastModifiedDate,LastModifiedById,ShowSubmitAndAttachButton,EntityDefinitionId+FROM+Layout+WHERE+EntityDefinition.QualifiedApiName=\'' +
             objectName +
@@ -11,9 +19,18 @@ public with sharing class LayoutService {
         return api.makeCallout(path, 'application/json', 'GET');
     }
 
-    @AuraEnabled
-    public static LayoutDetail getLayoutDetailInfo(Id layoutId) {
-        ToolingAPIService api = new ToolingAPIService(authMethod);
+    public static LayoutDetail getLayoutDetailInfo(
+        ToolingAPIService.AUTH_METHOD authMethod,
+        String domain,
+        String username,
+        Id layoutId
+    ) {
+        ToolingAPIService api = new ToolingAPIService(
+            authMethod,
+            domain,
+            username,
+            ToolingApiService.DEFAULT_VERSION
+        );
         String path = 'sobjects/layout/' + layoutId;
         String layoutJson = api.makeCallout(path, 'application/json', 'GET');
         return new LayoutDetail(

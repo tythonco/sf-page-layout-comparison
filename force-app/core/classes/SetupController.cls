@@ -1,9 +1,7 @@
 public with sharing class SetupController {
     @AuraEnabled
-    public static List<AuthenticatedUser> fetchAuthenticatedUsers(
-        String oauthFlow
-    ) {
-        List<AuthenticatedUser> authUsers = new List<AuthenticatedUser>();
+    public static List<AuthorizedUser> fetchAuthorizedUsers(String oauthFlow) {
+        List<AuthorizedUser> authUsers = new List<AuthorizedUser>();
         List<OAuthCreds__mdt> allCreds = OAuthCredsSelector.fetchAll();
         for (OAuthCreds__mdt credsCMDT : allCreds) {
             OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
@@ -13,7 +11,7 @@ public with sharing class SetupController {
             if (creds.oauth_flow == oauthFlow) {
                 if (creds.oauth_flow == 'jwt' || creds.access_token != null) {
                     authUsers.add(
-                        new AuthenticatedUser(
+                        new AuthorizedUser(
                             creds.domain,
                             creds.user_username,
                             creds.user_display_name
@@ -120,6 +118,85 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
+    public static List<String> fetchPageLayoutIncludedFields(
+        String authMethod,
+        String domain,
+        String username,
+        String objectName,
+        String pageLayoutName
+    ) {
+        try {
+            domain = domain != null
+                ? domain
+                : URL.getOrgDomainUrl().toExternalForm();
+            List<String> includedFields = new List<String>();
+            ToolingAPIService.AUTH_METHOD apiAuthMethod;
+            switch on authMethod {
+                when 'session_id' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.CURRENT_USER_SESSIONID;
+                }
+                when 'session_id_from_vf' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF;
+                }
+                when 'creds' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_CREDENTIALS;
+                }
+                when 'device' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_DEVICE;
+                }
+                when 'jwt_ak' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY;
+                }
+                when 'jwt_kp' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED;
+                }
+                when 'web' {
+                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_WEB_SERVER;
+                }
+                when else {
+                    apiAuthMethod = ToolingAPIService.DEFAULT_AUTH_METHOD;
+                }
+            }
+            String layoutsForObjectJson = LayoutService.getLayoutsForObject(
+                apiAuthMethod,
+                domain,
+                username,
+                objectName
+            );
+            Map<String, Object> layoutsForObjectInfo = (Map<String, Object>) JSON.deserializeUntyped(
+                layoutsForObjectJson
+            );
+            List<Object> layoutsForObject = (List<Object>) layoutsForObjectInfo.get(
+                'records'
+            );
+            Id matchingLayoutId;
+            for (Object lObject : layoutsForObject) {
+                Map<String, Object> l = (Map<String, Object>) lObject;
+                String name = (String) l.get('Name');
+                if (name == pageLayoutName) {
+                    matchingLayoutId = (Id) l.get('Id');
+                }
+            }
+            if (matchingLayoutId != null) {
+                LayoutDetail layout = LayoutService.getLayoutDetailInfo(
+                    apiAuthMethod,
+                    domain,
+                    username,
+                    matchingLayoutId
+                );
+                includedFields = layout.includedFields;
+            }
+            return includedFields;
+        } catch (AuraHandledException ahe) {
+            throw new AuraHandledException(ahe.getMessage());
+        } catch (System.Exception e) {
+            throw new AuraHandledException(
+                e.getMessage() + e.getStackTraceString()
+            );
+        }
+    }
+
+    @AuraEnabled
     public static Map<String, Object> testCredentialsFlowOrgDomainConnection(
         String domain
     ) {
@@ -132,15 +209,15 @@ public with sharing class SetupController {
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromCredentialsFlow();
             if (resp.access_token != null) {
                 return new Map<String, Object>{
-                    'status' => 'authenticated',
-                    'is_authenticated' => true
+                    'status' => 'authorized',
+                    'is_authorized' => true
                 };
             } else if (resp.error != null && resp.error_description != null) {
                 return new Map<String, Object>{
                     'status' => resp.error,
                     'error' => resp.error,
                     'error_description' => resp.error_description,
-                    'is_authenticated' => false
+                    'is_authorized' => false
                 };
             } else {
                 throw new AuraHandledException(
@@ -190,15 +267,15 @@ public with sharing class SetupController {
             }
             if (resp.access_token != null) {
                 return new Map<String, Object>{
-                    'status' => 'authenticated',
-                    'is_authenticated' => true
+                    'status' => 'authorized',
+                    'is_authorized' => true
                 };
             } else if (resp.error != null && resp.error_description != null) {
                 return new Map<String, Object>{
                     'status' => resp.error,
                     'error' => resp.error,
                     'error_description' => resp.error_description,
-                    'is_authenticated' => false
+                    'is_authorized' => false
                 };
             } else {
                 throw new AuraHandledException(
@@ -213,7 +290,7 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> validatePendingDeviceFlowAuthentication(
+    public static Map<String, Object> validatePendingDeviceFlowAuthorization(
         String domain,
         String deviceCode
     ) {
@@ -228,29 +305,29 @@ public with sharing class SetupController {
             );
             if (resp.access_token != null) {
                 return new Map<String, Object>{
-                    'status' => 'authenticated',
-                    'is_authenticated' => true
+                    'status' => 'authorized',
+                    'is_authorized' => true
                 };
             } else if (resp.error != null && resp.error_description != null) {
                 return new Map<String, Object>{
                     'status' => resp.error,
                     'error' => resp.error,
                     'error_description' => resp.error_description,
-                    'is_authenticated' => false
+                    'is_authorized' => false
                 };
             } else {
                 throw new AuraHandledException(
-                    'Error validating pending authentication!'
+                    'Error validating pending authorization!'
                 );
             }
         } catch (Exception e) {
             throw new AuraHandledException(
-                'Error validating pending authentication!'
+                'Error validating pending authorization!'
             );
         }
     }
 
-    public with sharing class AuthenticatedUser {
+    public with sharing class AuthorizedUser {
         @AuraEnabled
         public String domain;
         @AuraEnabled
@@ -258,7 +335,7 @@ public with sharing class SetupController {
         @AuraEnabled
         public String usernameForDisplay;
 
-        public AuthenticatedUser(
+        public AuthorizedUser(
             String domain,
             String username,
             String usernameForDisplay

@@ -1,0 +1,108 @@
+<template>
+    <lightning-card
+        title="PLC Comparison"
+        icon-name="custom:custom27"
+        class="container"
+    >
+        <div class="plc-comparison">
+            <div>
+                <lightning-combobox
+                    dropdown-alignment="right"
+                    name="authMethodSelector"
+                    value={selectedAuthMethod}
+                    label="Auth Method"
+                    onchange={handleSelectAuthMethod}
+                    options={authMethodOptions}
+                >
+                </lightning-combobox>
+                <div>
+                    <div class="plc-settings">
+                        <lightning-layout multiple-rows vertical-align="end">
+                            <lightning-layout-item
+                                if:true={isOAuthMethodSelected}
+                                class="slds-p-right_small"
+                                size="3"
+                            >
+                                <lightning-combobox
+                                    dropdown-alignment="left"
+                                    name="authorizedUserSelector"
+                                    value={selectedAuthorizedUser}
+                                    label="Authorized User"
+                                    onchange={handleSelectAuthorizedUser}
+                                    options={authorizedUserOptions}
+                                >
+                                </lightning-combobox>
+                            </lightning-layout-item>
+                            <lightning-layout-item
+                                class="slds-p-right_small"
+                                size="3"
+                            >
+                                <lightning-input
+                                    type="text"
+                                    label="Object"
+                                    placeholder="Account"
+                                    disabled={isObjectInputDisabled}
+                                    value={objectName}
+                                    onchange={handleObjectNameChange}
+                                >
+                                </lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item
+                                class="slds-p-right_small"
+                                size="3"
+                            >
+                                <lightning-input
+                                    type="text"
+                                    label="Page Layout"
+                                    placeholder="Account Layout"
+                                    disabled={isLayoutInputDisabled}
+                                    value={pageLayoutName}
+                                    onchange={handlePageLayoutNameChange}
+                                >
+                                </lightning-input>
+                            </lightning-layout-item>
+                            <lightning-layout-item size="1">
+                                <lightning-button
+                                    class="
+                                        fetch-layout-info-button
+                                        slds-p-around_xxx-small
+                                    "
+                                    icon-name="utility:forward_up"
+                                    label="Fetch"
+                                    title="Fetch Page Layout Info"
+                                    variant="brand"
+                                    onclick={handleFetchPageLayoutIncludedFields}
+                                >
+                                </lightning-button>
+                            </lightning-layout-item>
+                        </lightning-layout>
+                    </div>
+                </div>
+                <div>
+                    <div class="field-table">
+                        <lightning-spinner
+                            alternative-text="Loading"
+                            size="large"
+                            if:true={isLoading}
+                        >
+                        </lightning-spinner>
+                        <div if:false={isLoading}>
+                            <lightning-layout horizontal-align="center">
+                                <lightning-layout-item size="9">
+                                    <lightning-datatable
+                                        if:true={tableHasRows}
+                                        key-field="name"
+                                        columns={columns}
+                                        data={rows}
+                                        hide-checkbox-column="true"
+                                    >
+                                    </lightning-datatable>
+                                </lightning-layout-item>
+                            </lightning-layout>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </lightning-card>
+</template>

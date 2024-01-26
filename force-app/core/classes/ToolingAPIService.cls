@@ -10,11 +10,11 @@ public with sharing class ToolingAPIService {
     }
 
     public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH_DEVICE;
+    public static final String DEFAULT_VERSION = '59.0';
 
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
         .toExternalForm();
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
-    private static final String DEFAULT_VERSION = '59.0';
 
     private final AUTH_METHOD authMethod;
     private final String oauthFlow;
@@ -122,7 +122,7 @@ public with sharing class ToolingAPIService {
                     );
                     if (refreshToken == null) {
                         throw new AuraHandledException(
-                            'No refresh token found for selected user; please reauthenticate from app settings and then try again.'
+                            'No refresh token found for selected user; please reauthorize from app settings and then try again.'
                         );
                     }
                     OAuthService oauth = new OAuthService(
@@ -151,7 +151,7 @@ public with sharing class ToolingAPIService {
                         resp.error_description == 'expired access/refresh token'
                     ) {
                         throw new AuraHandledException(
-                            'Invalid/Expired refresh token for selected user; please reauthenticate from app settings and then try again.'
+                            'Invalid/Expired refresh token for selected user; please reauthorize from app settings and then try again.'
                         );
                     }
                     throw new AuraHandledException(
