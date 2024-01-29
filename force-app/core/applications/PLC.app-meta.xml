@@ -14,5 +14,4 @@
     <tabs>plcSetup</tabs>
     <tabs>plcComparison</tabs>
     <uiType>Lightning</uiType>
-    <utilityBar>PLC_UtilityBar</utilityBar>
 </CustomApplication>
