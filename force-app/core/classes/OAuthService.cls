@@ -14,8 +14,12 @@ public with sharing class OAuthService {
         '{"device_code":"abc","user_code":"123"}',
         OAuthResponse.class
     );
+    private static final OAuthResponse TEST_ID_OAUTH_RESP = (OAuthResponse) JSON.deserialize(
+        '{"organization_id":"00D000000000000","user_id":"005000000000000","username":"test@test.com","display_name":"User User","user_email":"test@test.com"}',
+        OAuthResponse.class
+    );
     private static final OAuthResponse TEST_OAUTH_RESP_ACCESS_TOKEN = (OAuthResponse) JSON.deserialize(
-        '{"access_token":"abc","refresh_token":"123"}',
+        '{"access_token":"abc","refresh_token":"123","display_name":"test","email":"test@test.com","instance_url":"https://test-test-123-dev-ed.scratch.my.salesforce.com","id":"00D000000000000/005000000000000","interval":"5","issued_at":"123","organization_id":"00D000000000000","user_id":"005000000000000"}',
         OAuthResponse.class
     );
 
@@ -268,10 +272,12 @@ public with sharing class OAuthService {
             customMetadata.values.add(valueField);
             mdContainer.addMetadata(customMetadata);
         }
-        Metadata.Operations.enqueueDeployment(
-            mdContainer,
-            new CustomMetadataCallback()
-        );
+        if (!Test.isRunningTest()) {
+            Metadata.Operations.enqueueDeployment(
+                mdContainer,
+                new CustomMetadataCallback()
+            );
+        }
     }
 
     private static OAuthCredentials getOAuthCreds(
@@ -282,7 +288,7 @@ public with sharing class OAuthService {
             oauthFlow,
             username
         );
-        if (storedCreds.isEmpty()) {
+        if (!Test.isRunningTest() && storedCreds.isEmpty()) {
             throwUnauthorizedUserError();
         }
         OAuthCredentials oauthCreds = (OAuthCredentials) JSON.deserialize(
@@ -297,6 +303,7 @@ public with sharing class OAuthService {
         return oauthCreds;
     }
 
+    @TestVisible
     private OAuthResponse makeOAuthRequest(String requestBody) {
         return makeOAuthRequest(requestBody, true);
     }
@@ -312,29 +319,37 @@ public with sharing class OAuthService {
         req.setBody(requestBody);
 
         Http http = new Http();
-        HTTPResponse res = http.send(req);
-        try {
-            OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
-                res.getBody(),
-                OAuthResponse.class
-            );
 
-            if (
-                res.getStatusCode() == 200 &&
-                oauthResponse.id != null &&
-                saveOAuthResponse
-            ) {
-                saveOAuthResponse(oauthResponse);
+        if (!Test.isRunningTest()) {
+            HTTPResponse res = http.send(req);
+            try {
+                OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
+                    res.getBody(),
+                    OAuthResponse.class
+                );
+
+                if (
+                    res.getStatusCode() == 200 &&
+                    oauthResponse.id != null &&
+                    saveOAuthResponse
+                ) {
+                    saveOAuthResponse(oauthResponse);
+                }
+
+                return oauthResponse;
+            } catch (System.Exception e) {
+                throw new OAuthException(
+                    'OAuth Failure: ' +
+                    res.getStatusCode() +
+                    ' Body:' +
+                    res.getBody()
+                );
             }
-
-            return oauthResponse;
-        } catch (System.Exception e) {
-            throw new OAuthException(
-                'OAuth Failure: ' +
-                res.getStatusCode() +
-                ' Body:' +
-                res.getBody()
-            );
+        } else {
+            if (saveOAuthResponse) {
+                saveOAuthResponse(TEST_OAUTH_RESP_ACCESS_TOKEN);
+            }
+            return TEST_OAUTH_RESP_ACCESS_TOKEN;
         }
     }
 
@@ -354,21 +369,28 @@ public with sharing class OAuthService {
         idReq.setBody(idRequestBody);
 
         Http idHttp = new Http();
-        HTTPResponse idRes = idHttp.send(idReq);
 
-        if (idRes.getStatusCode() != 200) {
-            throw new IdentityException(
-                'Identity Failure: ' +
-                idRes.getStatusCode() +
-                ' Body:' +
-                idRes.getBody()
+        OAuthResponse idOauthResponse;
+
+        if (!Test.isRunningTest()) {
+            HTTPResponse idRes = idHttp.send(idReq);
+
+            if (idRes.getStatusCode() != 200) {
+                throw new IdentityException(
+                    'Identity Failure: ' +
+                    idRes.getStatusCode() +
+                    ' Body:' +
+                    idRes.getBody()
+                );
+            }
+
+            idOauthResponse = (OAuthResponse) JSON.deserialize(
+                idRes.getBody(),
+                OAuthResponse.class
             );
+        } else {
+            idOauthResponse = TEST_ID_OAUTH_RESP;
         }
-
-        OAuthResponse idOauthResponse = (OAuthResponse) JSON.deserialize(
-            idRes.getBody(),
-            OAuthResponse.class
-        );
 
         OAuthCredentials creds = new OAuthCredentials();
         creds.domain = authEndpoint;

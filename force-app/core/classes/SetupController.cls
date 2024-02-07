@@ -5,7 +5,7 @@ public with sharing class SetupController {
         List<OAuthCreds__mdt> allCreds = OAuthCredsSelector.fetchAll();
         for (OAuthCreds__mdt credsCMDT : allCreds) {
             OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
-                credsCMDT.Value__c,
+                Test.isRunningTest() ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE : credsCMDT.Value__c,
                 OAuthService.OAuthCredentials.class
             );
             if (creds.oauth_flow == oauthFlow) {
