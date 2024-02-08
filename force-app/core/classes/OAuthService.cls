@@ -141,6 +141,10 @@ public with sharing class OAuthService {
     }
 
     public OAuthResponse generateAccessTokenFromCredentialsFlow() {
+        return generateAccessTokenFromCredentialsFlow(true);
+    }
+
+    public OAuthResponse generateAccessTokenFromCredentialsFlow(Boolean saveOauthResponse) {
         String body =
             'grant_type=client_credentials&client_id=' +
             EncodingUtil.urlEncode(this.ca.client_id, 'UTF-8') +
@@ -148,7 +152,7 @@ public with sharing class OAuthService {
             EncodingUtil.urlEncode(this.ca.client_secret, 'UTF-8');
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
-            : makeOAuthRequest(body);
+            : makeOAuthRequest(body, saveOAuthResponse);
     }
 
     public OAuthResponse generateAccessTokenFromDeviceFlow(String deviceCode) {
@@ -166,6 +170,15 @@ public with sharing class OAuthService {
         String certName,
         String consumerKey,
         String username
+    ) {
+        return generateAccessTokenFromJWTAdminKeyFlow(certName, consumerKey, username, true);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTAdminKeyFlow(
+        String certName,
+        String consumerKey,
+        String username,
+        Boolean saveOAuthResponse
     ) {
         Auth.JWT jwt = new Auth.JWT();
         jwt.setIss(consumerKey);
@@ -191,8 +204,8 @@ public with sharing class OAuthService {
                     OAuthResponse.class
                 );
 
-                if (res.getStatusCode() == 200 && oauthResponse.id != null) {
-                    saveOAuthResponse(oauthResponse);
+                if (res.getStatusCode() == 200 && oauthResponse.id != null && saveOAuthResponse) {
+                    saveOAuthResponse(oauthResponse, certName, consumerKey);
                 }
                 return oauthResponse;
             } catch (System.Exception e) {
@@ -208,6 +221,13 @@ public with sharing class OAuthService {
 
     public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
         String username
+    ) {
+        return generateAccessTokenFromJWTPackagedKeyFlow(username, true);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
+        String username,
+        Boolean saveOAuthResponse
     ) {
         JWTRaw jwt = new JWTRaw('RS256');
         jwt.pkcs8 = this.ca.jwt_private_key.replace('\n', '').replace('\r', '');
@@ -227,7 +247,7 @@ public with sharing class OAuthService {
             jwt.issue();
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
-            : makeOAuthRequest(body);
+            : makeOAuthRequest(body, saveOAuthResponse);
     }
 
     public OAuthResponse generateAccessTokenFromRefreshFlow(
@@ -243,6 +263,14 @@ public with sharing class OAuthService {
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
             : makeOAuthRequest(body, false);
+    }
+
+    public static String getAdminProvidedCertificateName(String username) {
+        return (getOAuthCreds('jwt_ak', username)).certificate_name;
+    }
+
+    public static String getAdminProvidedConsumerKey(String username) {
+        return (getOAuthCreds('jwt_ak', username)).consumer_key;
     }
 
     public void upsertOAuthCredsCMDT(OAuthCredentials creds) {
@@ -354,6 +382,10 @@ public with sharing class OAuthService {
     }
 
     public void saveOAuthResponse(OAuthResponse oauthResponse) {
+        saveOAuthResponse(oauthResponse, null, null);
+    }
+
+    public void saveOAuthResponse(OAuthResponse oauthResponse, String adminProvidedCertName, String adminProvidedConsumerKey) {
         String idRequestBody =
             'access_token=' +
             EncodingUtil.urlEncode(oauthResponse.access_token, 'UTF-8') +
@@ -423,6 +455,8 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_ADMIN_KEY {
                 creds.oauth_flow = 'jwt_ak';
+                creds.certificate_name = adminProvidedCertName;
+                creds.consumer_key = adminProvidedConsumerKey;
             }
             when OAUTH_WEB_SERVER {
                 creds.oauth_flow = 'web';
@@ -487,6 +521,8 @@ public with sharing class OAuthService {
         public String sandbox_name;
         public String access_token;
         public String refresh_token;
+        public String certificate_name;
+        public String consumer_key;
         public String signature;
         public String scope;
         public String instance_url;
