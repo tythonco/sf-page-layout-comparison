@@ -65,7 +65,7 @@ public with sharing class ToolingAPIService {
         this.username = username;
     }
 
-    public String makeCallout(String path, String contentType, String method) {
+    public String makeCallout(String path, String contentType, String method, Boolean saveOAuthResponse) {
         String accessToken;
         switch on this.authMethod {
             when CURRENT_USER_SESSIONID {
@@ -89,7 +89,8 @@ public with sharing class ToolingAPIService {
             contentType,
             method,
             accessToken.replace('\n', ''),
-            0
+            0,
+            saveOAuthResponse
         );
     }
 
@@ -98,7 +99,8 @@ public with sharing class ToolingAPIService {
         String contentType,
         String method,
         String accessToken,
-        Integer numAttempts
+        Integer numAttempts,
+        Boolean saveOAuthResponse
     ) {
         HttpRequest req = new HttpRequest();
         req.setEndpoint(endpoint);
@@ -138,13 +140,16 @@ public with sharing class ToolingAPIService {
                             contentType,
                             method,
                             resp.access_token,
-                            1
+                            1,
+                            false
                         );
                         // Saving the OAuth Response counts as a DML statement
                         // All DML must be done after the last callout completes
                         // This prevents the 'uncommitted work pending' error
                         resp.refresh_token = refreshToken;
-                        oauth.saveOAuthResponse(resp);
+                        if (saveOAuthResponse) {
+                            oauth.saveOAuthResponse(resp);
+                        }
                         return calloutResp;
                     } else if (
                         resp.error == 'invalid_grant' &&

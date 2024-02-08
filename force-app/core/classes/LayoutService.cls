@@ -56,7 +56,7 @@ public with sharing class LayoutService {
             '\'';
         return Test.isRunningTest()
             ? JSON.serialize(TEST_LAYOUTS_FOR_OBJECT)
-            : api.makeCallout(path, 'application/json', 'GET');
+            : api.makeCallout(path, 'application/json', 'GET', false);
     }
 
     public static LayoutDetail getLayoutDetailInfo(
@@ -74,7 +74,7 @@ public with sharing class LayoutService {
         String path = 'sobjects/layout/' + layoutId;
         String layoutJson = Test.isRunningTest()
             ? JSON.serialize(TEST_LAYOUT)
-            : api.makeCallout(path, 'application/json', 'GET');
+            : api.makeCallout(path, 'application/json', 'GET', true);
         return new LayoutDetail(
             (Layout) JSON.deserialize(layoutJson, Layout.class)
         );
