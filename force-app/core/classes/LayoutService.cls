@@ -40,12 +40,14 @@ public with sharing class LayoutService {
     @AuraEnabled
     public static String getLayoutsForObject(
         ToolingAPIService.AUTH_METHOD authMethod,
+        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
         String domain,
         String username,
         String objectName
     ) {
         ToolingAPIService api = new ToolingAPIService(
             authMethod,
+            cmdtUpsertMethod,
             domain,
             username,
             ToolingApiService.DEFAULT_VERSION
@@ -61,12 +63,14 @@ public with sharing class LayoutService {
 
     public static LayoutDetail getLayoutDetailInfo(
         ToolingAPIService.AUTH_METHOD authMethod,
+        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
         String domain,
         String username,
         Id layoutId
     ) {
         ToolingAPIService api = new ToolingAPIService(
             authMethod,
+            cmdtUpsertMethod,
             domain,
             username,
             ToolingApiService.DEFAULT_VERSION

@@ -49,11 +49,21 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
-    public static Map<String, String> fetchDeviceFlowAuthCodes(String domain) {
+    public static Map<String, String> fetchDeviceFlowAuthCodes(String cmdtUpsertMethod, String domain) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
+            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+            switch on cmdtUpsertMethod {
+                when 'apex' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+                }
+                when 'api' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                }
+            }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
+                cmdtUpsertChannel,
                 authEndpoint
             );
             return oauth.generateCodesFromDeviceFlow();
@@ -84,30 +94,78 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static void revokeOAuthEnabledUserAccess(
+        String cmdtUpsertMethod,
         String oauthFlow,
         List<String> usernamesToRevoke
     ) {
         try {
+            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+            switch on cmdtUpsertMethod {
+                when 'apex' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+                }
+                when 'api' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                }
+            }
             List<OAuthService.OAuthCredentials> credsToRevoke = new List<OAuthService.OAuthCredentials>();
             List<OAuthCreds__mdt> allOAuthCredCMDTsToRevoke = OAuthCredsSelector.fetchByUsernames(
                 oauthFlow,
                 userNamesToRevoke
             );
-            for (OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke) {
-                OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
-                    Test.isRunningTest()
-                        ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
-                        : oauthCredCMDT.Value__c,
-                    OAuthService.OAuthCredentials.class
-                );
-                // Currently CMDTs cannot be deleted via Apex, but clearing the access & refresh tokens will serve to revoke access
-                creds.access_token = null;
-                creds.refresh_token = null;
-                credsToRevoke.add(creds);
-            }
+
             OAuthService oauth = new OAuthService();
-            if (!Test.isRunningTest()) {
-                oauth.upsertOAuthCredsCMDT(credsToRevoke);
+
+            if (cmdtUpsertChannel == OAuthService.CMDT_UPSERT_METHOD.API) {
+                // CMDTs can be deleted via the Metadata API
+                Map<String, OAuthService.OAuthCredentials> credsToRevokeByFullNames = new Map<String, OAuthService.OAuthCredentials>();
+                for (
+                    OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke
+                ) {
+                    String nsPrefix = oauthCredCMDT?.NamespacePrefix != null &&
+                        oauthCredCMDT.NamespacePrefix != ''
+                        ? oauthCredCMDT.NamespacePrefix
+                        : null;
+                    String fullName = nsPrefix != null
+                        ? nsPrefix +
+                        '__' +
+                        'OAuthCreds__mdt' +
+                        '.' +
+                        oauthCredCMDT.QualifiedApiName
+                        : 'OAuthCreds__mdt' +
+                        '.' +
+                        oauthCredCMDT.QualifiedApiName;
+                    OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
+                        Test.isRunningTest()
+                            ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
+                            : oauthCredCMDT.Value__c,
+                        OAuthService.OAuthCredentials.class
+                    );
+                    credsToRevokeByFullNames.put(fullName, creds);
+                }
+                if (!Test.isRunningTest()) {
+                    oauth.deleteOAuthCredsCMDT(credsToRevokeByFullNames);
+                }
+            }
+
+            else if (cmdtUpsertChannel == OAuthService.CMDT_UPSERT_METHOD.APEX) {
+                // CMDTs cannot be deleted via the `Metadata` Apex class
+                // Clearing the access & refresh tokens will serve to revoke access
+                for (OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke) {
+                    OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
+                        Test.isRunningTest()
+                            ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
+                            : oauthCredCMDT.Value__c,
+                        OAuthService.OAuthCredentials.class
+                    );
+                    creds.access_token = null;
+                    creds.refresh_token = null;
+                    credsToRevoke.add(creds);
+                }
+
+                if (!Test.isRunningTest()) {                    
+                    oauth.upsertOAuthCredsCMDT(credsToRevoke, null);
+                }
             }
         } catch (Exception e) {
             throw new AuraHandledException(
@@ -118,92 +176,24 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
-    public static List<String> fetchPageLayoutIncludedFields(
-        String authMethod,
-        String domain,
-        String username,
-        String objectName,
-        String pageLayoutName
-    ) {
-        try {
-            domain = domain != null
-                ? domain
-                : URL.getOrgDomainUrl().toExternalForm();
-            List<String> includedFields = new List<String>();
-            ToolingAPIService.AUTH_METHOD apiAuthMethod;
-            switch on authMethod {
-                when 'session_id' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.CURRENT_USER_SESSIONID;
-                }
-                when 'session_id_from_vf' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF;
-                }
-                when 'creds' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_CREDENTIALS;
-                }
-                when 'device' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_DEVICE;
-                }
-                when 'jwt_ak' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY;
-                }
-                when 'jwt_kp' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED;
-                }
-                when 'web' {
-                    apiAuthMethod = ToolingAPIService.AUTH_METHOD.OAUTH_WEB_SERVER;
-                }
-                when else {
-                    apiAuthMethod = ToolingAPIService.DEFAULT_AUTH_METHOD;
-                }
-            }
-            String layoutsForObjectJson = LayoutService.getLayoutsForObject(
-                apiAuthMethod,
-                domain,
-                username,
-                objectName
-            );
-            Map<String, Object> layoutsForObjectInfo = (Map<String, Object>) JSON.deserializeUntyped(
-                layoutsForObjectJson
-            );
-            List<Object> layoutsForObject = (List<Object>) layoutsForObjectInfo.get(
-                'records'
-            );
-            Id matchingLayoutId;
-            for (Object lObject : layoutsForObject) {
-                Map<String, Object> l = (Map<String, Object>) lObject;
-                String name = (String) l.get('Name');
-                if (name == pageLayoutName) {
-                    matchingLayoutId = (Id) l.get('Id');
-                }
-            }
-            if (matchingLayoutId != null) {
-                LayoutDetail layout = LayoutService.getLayoutDetailInfo(
-                    apiAuthMethod,
-                    domain,
-                    username,
-                    matchingLayoutId
-                );
-                includedFields = layout.includedFields;
-            }
-            return includedFields;
-        } catch (AuraHandledException ahe) {
-            throw new AuraHandledException(ahe.getMessage());
-        } catch (System.Exception e) {
-            throw new AuraHandledException(
-                e.getMessage() + e.getStackTraceString()
-            );
-        }
-    }
-
-    @AuraEnabled
     public static Map<String, Object> testCredentialsFlowOrgDomainConnection(
+        String cmdtUpsertMethod,
         String domain
     ) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
+            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+            switch on cmdtUpsertMethod {
+                when 'apex' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+                }
+                when 'api' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                }
+            }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS,
+                cmdtUpsertChannel,
                 authEndpoint
             );
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromCredentialsFlow();
@@ -236,6 +226,16 @@ public with sharing class SetupController {
         Map<String, String> params
     ) {
         try {
+            String cmdtUpsertMethod = params.get('cmdtUpsertMethod');
+            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+            switch on cmdtUpsertMethod {
+                when 'apex' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+                }
+                when 'api' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                }
+            }
             String domain = params.get('domain');
             String flow = params.get('flow');
             String username = params.get('username');
@@ -246,6 +246,7 @@ public with sharing class SetupController {
                 // Packaged Key
                 oauth = new OAuthService(
                     ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED,
+                    cmdtUpsertChannel,
                     authEndpoint
                 );
                 resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(
@@ -257,6 +258,7 @@ public with sharing class SetupController {
                 String consumerKey = params.get('consumerKey');
                 oauth = new OAuthService(
                     ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY,
+                    cmdtUpsertChannel,
                     authEndpoint
                 );
                 resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(
@@ -291,13 +293,24 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static Map<String, Object> validatePendingDeviceFlowAuthorization(
+        String cmdtUpsertMethod,
         String domain,
         String deviceCode
     ) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
+            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+            switch on cmdtUpsertMethod {
+                when 'apex' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+                }
+                when 'api' {
+                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                }
+            }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
+                cmdtUpsertChannel,
                 authEndpoint
             );
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromDeviceFlow(

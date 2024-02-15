@@ -12,7 +12,7 @@ public with sharing class SetupControllerTest {
 
     @isTest
     static void testFetchDeviceFlowAuthCodes() {
-        Map<String, String> deviceCodesByName = SetupController.fetchDeviceFlowAuthCodes(URL.getOrgDomainUrl().toExternalForm());
+        Map<String, String> deviceCodesByName = SetupController.fetchDeviceFlowAuthCodes('api', URL.getOrgDomainUrl().toExternalForm());
     }
 
     @isTest
@@ -27,17 +27,12 @@ public with sharing class SetupControllerTest {
 
     @isTest
     static void testRevokeOAuthEnabledUserAccess() {
-        SetupController.revokeOAuthEnabledUserAccess('test', new List<String>{'test'});
-    }
-
-    @isTest
-    static void testFetchPageLayoutIncludedFields() {
-        SetupController.fetchPageLayoutIncludedFields('test', URL.getOrgDomainUrl().toExternalForm(), UserInfo.getUserName(), 'Account', 'Account Layout');
+        SetupController.revokeOAuthEnabledUserAccess('apex', 'test', new List<String>{'test'});
     }
 
     @isTest
     static void testTestCredentialsFlowOrgDomainConnection() {
-        SetupController.testCredentialsFlowOrgDomainConnection(URL.getOrgDomainUrl().toExternalForm());
+        SetupController.testCredentialsFlowOrgDomainConnection('api', URL.getOrgDomainUrl().toExternalForm());
     }
 
     @isTest
@@ -51,7 +46,7 @@ public with sharing class SetupControllerTest {
 
     @isTest
     static void testValidatePendingDeviceFlowAuthorization() {
-        SetupController.validatePendingDeviceFlowAuthorization(URL.getOrgDomainUrl().toExternalForm(), '12345');
+        SetupController.validatePendingDeviceFlowAuthorization('apex', URL.getOrgDomainUrl().toExternalForm(), '12345');
     }
 
 }

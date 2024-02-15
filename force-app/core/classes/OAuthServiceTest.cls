@@ -4,12 +4,12 @@ public with sharing class OAuthServiceTest {
     static void testOAuthServiceConstructors() {
         OAuthService oa = new OAuthService();
         OAuthService oa2 = new OAuthService(URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oa3 = new OAuthService(null, URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oaCredentialsFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS, URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oaJWTAdminKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY, URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oaJWTPackagedKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED, URL.getOrgDomainUrl().toExternalForm());
-        OAuthService oaServerFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_WEB_SERVER, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oa3 = new OAuthService(null, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaCredentialsFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaJWTAdminKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaJWTPackagedKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaServerFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_WEB_SERVER, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
     }
 
     @isTest
@@ -34,31 +34,31 @@ public with sharing class OAuthServiceTest {
 
     @isTest
     static void testGenerateAccessTokenFromCredentialsFlow() {
-        OAuthService oaCredentialsFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaCredentialsFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
         OAuthService.OAuthResponse oaResp = oaCredentialsFlow.generateAccessTokenFromCredentialsFlow();
     }
 
     @isTest
     static void testGenerateCodesFromDeviceFlow() {
-        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
         Map<String,String> codesByType = oaDeviceFlow.generateCodesFromDeviceFlow();
     }
 
     @isTest
     static void testGenerateAccessTokenFromDeviceFlow() {
-        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaDeviceFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_DEVICE, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
         OAuthService.OAuthResponse oaResp = oaDeviceFlow.generateAccessTokenFromDeviceFlow('device_code');
     }
 
     @isTest
     static void testGenerateAccessTokenFromJWTAdminKeyFlow() {
-        OAuthService oaJWTAdminKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaJWTAdminKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
         OAuthService.OAuthResponse oaResp = oaJWTAdminKeyFlow.generateAccessTokenFromJWTAdminKeyFlow('cert_name','consumer_key','username');
     }
 
     @isTest
     static void testGenerateAccessTokenFromJWTPackagedKeyFlow() {
-        OAuthService oaJWTPackagedKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED, URL.getOrgDomainUrl().toExternalForm());
+        OAuthService oaJWTPackagedKeyFlow = new OAuthService(ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED, OAuthService.DEFAULT_CMDT_UPSERT_METHOD, URL.getOrgDomainUrl().toExternalForm());
         OAuthService.OAuthResponse oaResp = oaJWTPackagedKeyFlow.generateAccessTokenFromJWTPackagedKeyFlow('username');
     }
 

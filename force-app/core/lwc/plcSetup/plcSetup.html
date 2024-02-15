@@ -100,6 +100,16 @@
                     options={oauthOptions}
                 >
                 </lightning-combobox>
+                <lightning-combobox
+                    class="cmdt-settings"
+                    dropdown-alignment="right"
+                    name="cmdtUpserMethodSelector"
+                    value={selectedCMDTUpsertMethod}
+                    label="CMDT Upsert/Delete Method"
+                    onchange={handleSelectCMDTUpsertMethod}
+                    options={cmdtUpsertMethodOptions}
+                >
+                </lightning-combobox>
                 <div if:true={isCredentialsOrJWTOrWebFlowSelected}>
                     <div class="oauth-testing">
                         <lightning-layout multiple-rows vertical-align="end">

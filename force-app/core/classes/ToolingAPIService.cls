@@ -9,7 +9,8 @@ public with sharing class ToolingAPIService {
         OAUTH_WEB_SERVER
     }
 
-    public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH_DEVICE;
+    public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF;
+    public static final OAuthService.CMDT_UPSERT_METHOD DEFAULT_CMDT_UPSERT_METHOD = OAuthService.DEFAULT_CMDT_UPSERT_METHOD;
     public static final String DEFAULT_VERSION = '59.0';
 
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
@@ -17,6 +18,7 @@ public with sharing class ToolingAPIService {
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
 
     private final AUTH_METHOD authMethod;
+    private final OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod;
     private final Boolean refreshTokenExistsForGivenOAuthFlow;
     private final String oauthFlow;
     private final String url;
@@ -25,6 +27,7 @@ public with sharing class ToolingAPIService {
     public ToolingAPIService() {
         this(
             DEFAULT_AUTH_METHOD,
+            DEFAULT_CMDT_UPSERT_METHOD,
             DEFAULT_DOMAIN,
             DEFAULT_USERNAME,
             DEFAULT_VERSION
@@ -32,11 +35,12 @@ public with sharing class ToolingAPIService {
     }
 
     public ToolingAPIService(AUTH_METHOD authMethod) {
-        this(authMethod, DEFAULT_DOMAIN, DEFAULT_USERNAME, DEFAULT_VERSION);
+        this(authMethod, DEFAULT_CMDT_UPSERT_METHOD, DEFAULT_DOMAIN, DEFAULT_USERNAME, DEFAULT_VERSION);
     }
 
     public ToolingAPIService(
         AUTH_METHOD authMethod,
+        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
         String domain,
         String username,
         String version
@@ -68,6 +72,7 @@ public with sharing class ToolingAPIService {
                 this.refreshTokenExistsForGivenOAuthFlow = false;
             }
         }
+        this.cmdtUpsertMethod = cmdtUpsertMethod;
         this.url = domain + '/services/data/v' + version + '/tooling/';
         this.username = username;
     }
@@ -127,6 +132,7 @@ public with sharing class ToolingAPIService {
                     // Refresh access token and try again
                     OAuthService oauth = new OAuthService(
                         this.authMethod,
+                        this.cmdtUpsertMethod,
                         this.url.substringBefore('/services')
                     );
                     OAuthService.OAuthResponse resp;
