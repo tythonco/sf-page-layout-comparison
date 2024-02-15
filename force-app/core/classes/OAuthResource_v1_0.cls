@@ -27,6 +27,16 @@ global with sharing class OAuthResource_v1_0 {
 
     private static void upsertOAuthCredsCMDT(Map<String, Object> params) {
         OAuthService.OAuthCredentials creds = new OAuthService.OAuthCredentials();
+        String cmdtUpsertMethod = (String) params.get('cmdt_upsert_method');
+        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
+        switch on cmdtUpsertMethod {
+            when 'apex' {
+                cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            }
+            when 'api' {
+                cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+            }
+        }
         String domain = (String) params.get('domain');
         creds.domain = domain;
         creds.is_dev_edition = domain.contains('.develop.');
@@ -56,8 +66,9 @@ global with sharing class OAuthResource_v1_0 {
             creds.user_id;
         OAuthService auth = new OAuthService(
             ToolingAPIService.AUTH_METHOD.OAUTH_WEB_SERVER,
+            cmdtUpsertChannel,
             URL.getOrgDomainUrl().toExternalForm()
         );
-        auth.upsertOAuthCredsCMDT(creds);
+        auth.upsertOAuthCredsCMDT(creds, (String) params.get('source_access_token'));
     }
 }

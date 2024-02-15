@@ -4,7 +4,7 @@ import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import fetchAuthorizedUsers from '@salesforce/apex/SetupController.fetchAuthorizedUsers';
-import fetchPageLayoutIncludedFields from '@salesforce/apex/SetupController.fetchPageLayoutIncludedFields';
+import fetchPageLayoutIncludedFields from '@salesforce/apex/ComparisonController.fetchPageLayoutIncludedFields';
 
 import { safeAwait } from 'c/plcUtils';
 
@@ -18,6 +18,11 @@ const AUTH_METHOD_OPTIONS = [
     { label: 'OAuth (Web Server)', value: 'web' }
 ];
 
+const CMDT_UPSERT_METHOD_OPTIONS = [
+    { label: '`Metadata` Apex Class (Asynchronous)', value: 'apex' },
+    { label: 'Metadata API (Synchronous)', value: 'api' },
+];
+
 const FIELD_TABLE_COLUMNS = [
     { label: 'Field', fieldName: 'field', type: 'text' }
 ];
@@ -26,6 +31,7 @@ export default class PlcComparison extends LightningElement {
     authorizedUsers = [];
     selectedAuthMethod = 'session_id';
     selectedAuthorizedUser;
+    selectedCMDTUpsertMethod = 'apex';
     objectName = 'Account';
     pageLayoutName = 'Account Layout';
     isLoading;
@@ -50,6 +56,10 @@ export default class PlcComparison extends LightningElement {
                     el.domain.split('/services/oauth2/token')[0]
             };
         });
+    }
+
+    get cmdtUpsertMethodOptions() {
+        return CMDT_UPSERT_METHOD_OPTIONS;
     }
 
     get isOAuthMethodSelected() {
@@ -81,6 +91,10 @@ export default class PlcComparison extends LightningElement {
         this.selectedAuthorizedUser = event.detail.value;
     }
 
+    handleSelectCMDTUpsertMethod(event) {
+        this.selectedCMDTUpsertMethod = event.detail.value;
+    }
+
     handleObjectNameChange(event) {
         this.rows = [];
         this.objectName = event.detail.value;
@@ -96,6 +110,7 @@ export default class PlcComparison extends LightningElement {
         this.rows = [];
         const params = {
             authMethod: this.selectedAuthMethod,
+            cmdtUpsertMethod: this.selectedCMDTUpsertMethod,
             domain: this.selectedAuthorizedUser?.split(' - ')[1],
             username: this.selectedAuthorizedUser?.split(' - ')[0],
             objectName: this.objectName,

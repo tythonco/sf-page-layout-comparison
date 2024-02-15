@@ -15,6 +15,17 @@
                     options={authMethodOptions}
                 >
                 </lightning-combobox>
+                <lightning-combobox
+                    if:true={isOAuthMethodSelected}
+                    class="cmdt-settings"
+                    dropdown-alignment="right"
+                    name="cmdtUpserMethodSelector"
+                    value={selectedCMDTUpsertMethod}
+                    label="CMDT Upsert Method"
+                    onchange={handleSelectCMDTUpsertMethod}
+                    options={cmdtUpsertMethodOptions}
+                >
+                </lightning-combobox>
                 <div>
                     <div class="plc-settings">
                         <lightning-layout multiple-rows vertical-align="end">

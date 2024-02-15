@@ -26,6 +26,11 @@ const AUTH_USER_COLUMNS = [
     { label: 'Username', fieldName: 'username', type: 'text' }
 ];
 
+const CMDT_UPSERT_METHOD_OPTIONS = [
+    { label: '`Metadata` Apex Class (Asynchronous)', value: 'apex' },
+    { label: 'Metadata API (Synchronous)', value: 'api' },
+];
+
 const MAX_VALIDATION_ATTEMPTS = 10;
 
 const OAUTH_OPTIONS = [
@@ -75,6 +80,7 @@ export default class PlcSetup extends LightningElement {
     oauthFlowTestUsername;
     orgDomain;
     orgDomainExternalUrl;
+    selectedCMDTUpsertMethod = 'apex';
     selectedOauthFlow = 'device';
     @track rows = [];
     userCode;
@@ -93,6 +99,10 @@ export default class PlcSetup extends LightningElement {
 
     get caInstallUrlLabel() {
         return 'Install the connected app by clicking here';
+    }
+
+    get cmdtUpsertMethodOptions() {
+        return CMDT_UPSERT_METHOD_OPTIONS;
     }
 
     get clientCredentialsAppInstallUrlValue() {
@@ -215,10 +225,11 @@ export default class PlcSetup extends LightningElement {
         if (this.authVerified) {
             return;
         }
+        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
         const domain = this.orgDomain;
         const deviceCode = this.deviceCode;
         const [error, results] = await safeAwait(
-            validatePendingDeviceFlowAuthorization({ domain, deviceCode })
+            validatePendingDeviceFlowAuthorization({ cmdtUpsertMethod, domain, deviceCode })
         );
         if (error) {
             console.error(error.body.message);
@@ -257,9 +268,10 @@ export default class PlcSetup extends LightningElement {
     }
 
     async fetchDeviceFlowAuthCodes() {
+        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
         const domain = this.orgDomain;
         const [error, results] = await safeAwait(
-            fetchDeviceFlowAuthCodes({ domain })
+            fetchDeviceFlowAuthCodes({ cmdtUpsertMethod, domain })
         );
         if (error) {
             console.error(error.body.message);
@@ -294,9 +306,11 @@ export default class PlcSetup extends LightningElement {
     }
 
     async handleCredentialsFlowTestOrgDomainConnection() {
+        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
         const domain = this.oauthFlowTestOrgDomain;
         const [error, results] = await safeAwait(
             testCredentialsFlowOrgDomainConnection({
+                cmdtUpsertMethod,
                 domain
             })
         );
@@ -327,10 +341,12 @@ export default class PlcSetup extends LightningElement {
 
     async handleJWTFlowTestOrgDomainConnection() {
         const certName = this.oauthFlowTestCertName;
+        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
         const consumerKey = this.oauthFlowTestConsumerKey;
         const domain = this.oauthFlowTestOrgDomain;
         const username = this.oauthFlowTestUsername;
         let params = {
+            cmdtUpsertMethod,
             domain,
             username
         };
@@ -441,12 +457,14 @@ export default class PlcSetup extends LightningElement {
             });
             if (confirmRevoke) {
                 this.isLoading = true;
+                const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
                 const oauthFlow = this.selectedOauthFlow;
                 const usernamesToRevoke = selectedRows.map(
                     (item) => item.username
                 );
                 const [error] = await safeAwait(
                     revokeOAuthEnabledUserAccess({
+                        cmdtUpsertMethod,
                         oauthFlow,
                         usernamesToRevoke
                     })
@@ -481,6 +499,10 @@ export default class PlcSetup extends LightningElement {
         }
     }
 
+    handleSelectCMDTUpsertMethod(event) {
+        this.selectedCMDTUpsertMethod = event.detail.value;
+    }
+
     handleSelectOauthFlow(event) {
         this.selectedOauthFlow = event.detail.value;
         this.refreshAuthorizedUsers();
@@ -513,7 +535,9 @@ export default class PlcSetup extends LightningElement {
             '?source=' +
             source +
             '&target=' +
-            target;
+            target +
+            '&cmdtUpsertMethod=' +
+            this.selectedCMDTUpsertMethod;
         window.open(webFlowServerUrl, '_blank').focus();
     }
 

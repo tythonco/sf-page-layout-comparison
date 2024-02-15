@@ -8,27 +8,40 @@ public with sharing class OAuthService {
     private String authEndpoint;
     private ToolingApiService.AUTH_METHOD authMethod;
     private ConnectedApp ca;
+    private CMDT_UPSERT_METHOD cmdtUpsertMethod;
     private String nsPrefix;
 
     private static final OAuthResponse TEST_OAUTH_RESP_DEVICE_CODES = (OAuthResponse) JSON.deserialize(
         '{"device_code":"abc","user_code":"123"}',
         OAuthResponse.class
     );
+    private static final OAuthResponse TEST_ID_OAUTH_RESP = (OAuthResponse) JSON.deserialize(
+        '{"organization_id":"00D000000000000","user_id":"005000000000000","username":"test@test.com","display_name":"User User","user_email":"test@test.com"}',
+        OAuthResponse.class
+    );
     private static final OAuthResponse TEST_OAUTH_RESP_ACCESS_TOKEN = (OAuthResponse) JSON.deserialize(
-        '{"access_token":"abc","refresh_token":"123"}',
+        '{"access_token":"abc","refresh_token":"123","display_name":"test","email":"test@test.com","instance_url":"https://test-test-123-dev-ed.scratch.my.salesforce.com","id":"00D000000000000/005000000000000","interval":"5","issued_at":"123","organization_id":"00D000000000000","user_id":"005000000000000"}',
         OAuthResponse.class
     );
 
+    public static final CMDT_UPSERT_METHOD DEFAULT_CMDT_UPSERT_METHOD = CMDT_UPSERT_METHOD.APEX;
+
+    public enum CMDT_UPSERT_METHOD {
+        APEX,
+        API
+    }
+
     public OAuthService() {
-        this(DEFAULT_AUTH_METHOD, DEFAULT_DOMAIN);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_CMDT_UPSERT_METHOD, DEFAULT_DOMAIN);
     }
 
     public OAuthService(String domain) {
-        this(DEFAULT_AUTH_METHOD, domain);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_CMDT_UPSERT_METHOD, domain);
     }
 
     public OAuthService(
         ToolingApiService.AUTH_METHOD authMethod,
+        CMDT_UPSERT_METHOD cmdtUpsertMethod,
         String domain
     ) {
         String caName;
@@ -51,6 +64,7 @@ public with sharing class OAuthService {
         }
         this.authEndpoint = domain + '/services/oauth2/token';
         this.authMethod = authMethod;
+        this.cmdtUpsertMethod = cmdtUpsertMethod;
         ConnectedApp__mdt connectedApp = ConnectedAppSelector.fetchByName(
             caName
         );
@@ -63,9 +77,37 @@ public with sharing class OAuthService {
             : null;
     }
 
+    public void deleteOAuthCredsCMDT(Map<String, OAuthService.OAuthCredentials> credsToDeleteByFullNames) {
+        MetadataService.MetadataPort service = new MetadataService.MetadataPort();
+        service.SessionHeader = new MetadataService.SessionHeader_element();
+        service.SessionHeader.sessionId = OAuthService.getToken();
+        service.CallOptions = new MetadataService.CallOptions_element();
+        service.timeout_x = 120000;
+
+        try {
+            service.deleteMetadata(
+                'CustomMetadata',
+                new List<String>(credsToDeleteByFullNames.keySet())
+            );
+        } catch (System.Exception e) {
+            throw new CustomMetadataException(
+                'Custom Metadata Delete Failure: ' + e.getMessage()
+            );
+        }
+    }
+
     public static String getToken() {
         String oauthFlow;
         switch on DEFAULT_AUTH_METHOD {
+            when CURRENT_USER_SESSIONID {
+                return UserInfo.getSessionId();
+            }
+            when CURRENT_USER_SESSIONID_FROM_VF {
+                Map<String, Object> sessionIdInfo = (Map<String, Object>) JSON.deserializeUntyped(
+                    Page.SessionId.getContent().toString()
+                );
+                return (String) sessionIdInfo.get('sessionId');
+            }
             when OAUTH_CREDENTIALS {
                 oauthFlow = 'creds';
             }
@@ -137,6 +179,10 @@ public with sharing class OAuthService {
     }
 
     public OAuthResponse generateAccessTokenFromCredentialsFlow() {
+        return generateAccessTokenFromCredentialsFlow(true);
+    }
+
+    public OAuthResponse generateAccessTokenFromCredentialsFlow(Boolean saveOauthResponse) {
         String body =
             'grant_type=client_credentials&client_id=' +
             EncodingUtil.urlEncode(this.ca.client_id, 'UTF-8') +
@@ -144,7 +190,7 @@ public with sharing class OAuthService {
             EncodingUtil.urlEncode(this.ca.client_secret, 'UTF-8');
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
-            : makeOAuthRequest(body);
+            : makeOAuthRequest(body, saveOAuthResponse);
     }
 
     public OAuthResponse generateAccessTokenFromDeviceFlow(String deviceCode) {
@@ -162,6 +208,15 @@ public with sharing class OAuthService {
         String certName,
         String consumerKey,
         String username
+    ) {
+        return generateAccessTokenFromJWTAdminKeyFlow(certName, consumerKey, username, true);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTAdminKeyFlow(
+        String certName,
+        String consumerKey,
+        String username,
+        Boolean saveOAuthResponse
     ) {
         Auth.JWT jwt = new Auth.JWT();
         jwt.setIss(consumerKey);
@@ -187,8 +242,8 @@ public with sharing class OAuthService {
                     OAuthResponse.class
                 );
 
-                if (res.getStatusCode() == 200 && oauthResponse.id != null) {
-                    saveOAuthResponse(oauthResponse);
+                if (res.getStatusCode() == 200 && oauthResponse.id != null && saveOAuthResponse) {
+                    saveOAuthResponse(oauthResponse, certName, consumerKey);
                 }
                 return oauthResponse;
             } catch (System.Exception e) {
@@ -204,6 +259,13 @@ public with sharing class OAuthService {
 
     public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
         String username
+    ) {
+        return generateAccessTokenFromJWTPackagedKeyFlow(username, true);
+    }
+
+    public OAuthResponse generateAccessTokenFromJWTPackagedKeyFlow(
+        String username,
+        Boolean saveOAuthResponse
     ) {
         JWTRaw jwt = new JWTRaw('RS256');
         jwt.pkcs8 = this.ca.jwt_private_key.replace('\n', '').replace('\r', '');
@@ -223,7 +285,7 @@ public with sharing class OAuthService {
             jwt.issue();
         return Test.isRunningTest()
             ? TEST_OAUTH_RESP_ACCESS_TOKEN
-            : makeOAuthRequest(body);
+            : makeOAuthRequest(body, saveOAuthResponse);
     }
 
     public OAuthResponse generateAccessTokenFromRefreshFlow(
@@ -241,11 +303,35 @@ public with sharing class OAuthService {
             : makeOAuthRequest(body, false);
     }
 
+    public static String getAdminProvidedCertificateName(String username) {
+        return (getOAuthCreds('jwt_ak', username)).certificate_name;
+    }
+
+    public static String getAdminProvidedConsumerKey(String username) {
+        return (getOAuthCreds('jwt_ak', username)).consumer_key;
+    }
+
     public void upsertOAuthCredsCMDT(OAuthCredentials creds) {
         upsertOAuthCredsCMDT(new List<OAuthCredentials>{ creds });
     }
 
     public void upsertOAuthCredsCMDT(List<OAuthCredentials> credsList) {
+        upsertOAuthCredsCMDT(credsList, null);
+    }
+
+    public void upsertOAuthCredsCMDT(OAuthCredentials creds, String accessTokenOverride) {
+        upsertOAuthCredsCMDT(new List<OAuthCredentials>{ creds }, accessTokenOverride);
+    }
+
+    public void upsertOAuthCredsCMDT(List<OAuthCredentials> credsList, String accessTokenOverride) {
+        if (this.cmdtUpsertMethod == CMDT_UPSERT_METHOD.APEX) {
+            upsertOauthCredsCMDTByApex(credsList);
+        } else if (this.cmdtUpsertMethod == CMDT_UPSERT_METHOD.API) {
+            upsertOauthCredsCMDTByApi(credsList, accessTokenOverride);
+        }
+    }
+
+    private void upsertOAuthCredsCMDTByApex(List<OAuthCredentials> credsList) {
         Metadata.DeployContainer mdContainer = new Metadata.DeployContainer();
         for (OAuthCredentials creds : credsList) {
             Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
@@ -268,10 +354,53 @@ public with sharing class OAuthService {
             customMetadata.values.add(valueField);
             mdContainer.addMetadata(customMetadata);
         }
-        Metadata.Operations.enqueueDeployment(
-            mdContainer,
-            new CustomMetadataCallback()
-        );
+        if (!Test.isRunningTest()) {
+            Metadata.Operations.enqueueDeployment(
+                mdContainer,
+                new CustomMetadataCallback()
+            );
+        }
+    }
+    
+    private void upsertOAuthCredsCMDTByApi(List<OAuthCredentials> credsList, String accessTokenOverride) {
+        for (OAuthCredentials creds : credsList) {
+            List<MetadataService.Metadata> metadataToUpsert = new List<MetadataService.Metadata>();
+            MetadataService.CustomMetadata cmdt = new MetadataService.CustomMetadata();
+            String fullNameWithoutNS =
+                'OAuthCreds.' +
+                OAuthCredsSelector.sanitize(
+                    creds.oauth_flow +
+                    '_' +
+                    creds.user_username
+                );
+            cmdt.fullName = nsPrefix != null
+                ? nsPrefix + '__' + fullNameWithoutNS
+                : fullNameWithoutNS;
+            cmdt.label = creds.user_username;
+            MetadataService.CustomMetadataValue cmdtValue = new MetadataService.CustomMetadataValue();
+            cmdtValue.field = nsPrefix != null
+                ? nsPrefix + '__' + 'Value__c'
+                : 'Value__c';
+            cmdtValue.value = JSON.serialize(creds, true);
+            cmdt.values = new List<MetadataService.CustomMetadataValue>{
+                cmdtValue
+            };
+            metadataToUpsert.add(cmdt);
+
+            MetadataService.MetadataPort service = new MetadataService.MetadataPort();
+            service.SessionHeader = new MetadataService.SessionHeader_element();
+            service.SessionHeader.sessionId = accessTokenOverride != null ? accessTokenOverride : OAuthService.getToken();
+            service.CallOptions = new MetadataService.CallOptions_element();
+            service.timeout_x = 120000;
+
+            try {                
+                service.upsertMetadata(metadataToUpsert);
+            } catch (System.Exception e) {
+                throw new CustomMetadataException(
+                    'Custom Metadata Upsert Failure: ' + e.getMessage()
+                );
+            }
+        }        
     }
 
     private static OAuthCredentials getOAuthCreds(
@@ -282,7 +411,7 @@ public with sharing class OAuthService {
             oauthFlow,
             username
         );
-        if (storedCreds.isEmpty()) {
+        if (!Test.isRunningTest() && storedCreds.isEmpty()) {
             throwUnauthorizedUserError();
         }
         OAuthCredentials oauthCreds = (OAuthCredentials) JSON.deserialize(
@@ -297,6 +426,7 @@ public with sharing class OAuthService {
         return oauthCreds;
     }
 
+    @TestVisible
     private OAuthResponse makeOAuthRequest(String requestBody) {
         return makeOAuthRequest(requestBody, true);
     }
@@ -312,33 +442,45 @@ public with sharing class OAuthService {
         req.setBody(requestBody);
 
         Http http = new Http();
-        HTTPResponse res = http.send(req);
-        try {
-            OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
-                res.getBody(),
-                OAuthResponse.class
-            );
 
-            if (
-                res.getStatusCode() == 200 &&
-                oauthResponse.id != null &&
-                saveOAuthResponse
-            ) {
-                saveOAuthResponse(oauthResponse);
+        if (!Test.isRunningTest()) {
+            HTTPResponse res = http.send(req);
+            try {
+                OAuthResponse oauthResponse = (OAuthResponse) JSON.deserialize(
+                    res.getBody(),
+                    OAuthResponse.class
+                );
+
+                if (
+                    res.getStatusCode() == 200 &&
+                    oauthResponse.id != null &&
+                    saveOAuthResponse
+                ) {
+                    saveOAuthResponse(oauthResponse);
+                }
+
+                return oauthResponse;
+            } catch (System.Exception e) {
+                throw new OAuthException(
+                    'OAuth Failure: ' +
+                    res.getStatusCode() +
+                    ' Body:' +
+                    res.getBody()
+                );
             }
-
-            return oauthResponse;
-        } catch (System.Exception e) {
-            throw new OAuthException(
-                'OAuth Failure: ' +
-                res.getStatusCode() +
-                ' Body:' +
-                res.getBody()
-            );
+        } else {
+            if (saveOAuthResponse) {
+                saveOAuthResponse(TEST_OAUTH_RESP_ACCESS_TOKEN);
+            }
+            return TEST_OAUTH_RESP_ACCESS_TOKEN;
         }
     }
 
     public void saveOAuthResponse(OAuthResponse oauthResponse) {
+        saveOAuthResponse(oauthResponse, null, null);
+    }
+
+    public void saveOAuthResponse(OAuthResponse oauthResponse, String adminProvidedCertName, String adminProvidedConsumerKey) {
         String idRequestBody =
             'access_token=' +
             EncodingUtil.urlEncode(oauthResponse.access_token, 'UTF-8') +
@@ -354,21 +496,28 @@ public with sharing class OAuthService {
         idReq.setBody(idRequestBody);
 
         Http idHttp = new Http();
-        HTTPResponse idRes = idHttp.send(idReq);
 
-        if (idRes.getStatusCode() != 200) {
-            throw new IdentityException(
-                'Identity Failure: ' +
-                idRes.getStatusCode() +
-                ' Body:' +
-                idRes.getBody()
+        OAuthResponse idOauthResponse;
+
+        if (!Test.isRunningTest()) {
+            HTTPResponse idRes = idHttp.send(idReq);
+
+            if (idRes.getStatusCode() != 200) {
+                throw new IdentityException(
+                    'Identity Failure: ' +
+                    idRes.getStatusCode() +
+                    ' Body:' +
+                    idRes.getBody()
+                );
+            }
+
+            idOauthResponse = (OAuthResponse) JSON.deserialize(
+                idRes.getBody(),
+                OAuthResponse.class
             );
+        } else {
+            idOauthResponse = TEST_ID_OAUTH_RESP;
         }
-
-        OAuthResponse idOauthResponse = (OAuthResponse) JSON.deserialize(
-            idRes.getBody(),
-            OAuthResponse.class
-        );
 
         OAuthCredentials creds = new OAuthCredentials();
         creds.domain = authEndpoint;
@@ -401,6 +550,8 @@ public with sharing class OAuthService {
             }
             when OAUTH_JWT_ADMIN_KEY {
                 creds.oauth_flow = 'jwt_ak';
+                creds.certificate_name = adminProvidedCertName;
+                creds.consumer_key = adminProvidedConsumerKey;
             }
             when OAUTH_WEB_SERVER {
                 creds.oauth_flow = 'web';
@@ -458,25 +609,27 @@ public with sharing class OAuthService {
     }
 
     public class OAuthCredentials {
-        public String domain;
-        public Boolean is_dev_edition;
-        public Boolean is_sandbox;
-        public Boolean is_scratch;
-        public String sandbox_name;
-        public String access_token;
-        public String refresh_token;
-        public String signature;
-        public String scope;
-        public String instance_url;
-        public String id;
-        public String token_type;
-        public Long issued_at;
-        public String oauth_flow;
-        public String organization_id;
-        public String user_id;
-        public String user_username;
-        public String user_display_name;
-        public String user_email;
+        public String domain { get; set; }
+        public Boolean is_dev_edition { get; set; }
+        public Boolean is_sandbox { get; set; }
+        public Boolean is_scratch { get; set; }
+        public String sandbox_name { get; set; }
+        public String access_token { get; set; }
+        public String refresh_token { get; set; }
+        public String certificate_name { get; set; }
+        public String consumer_key { get; set; }
+        public String signature { get; set; }
+        public String scope { get; set; }
+        public String instance_url { get; set; }
+        public String id { get; set; }
+        public String token_type { get; set; }
+        public Long issued_at { get; set; }
+        public String oauth_flow { get; set; }
+        public String organization_id { get; set; }
+        public String user_id { get; set; }
+        public String user_username { get; set; }
+        public String user_display_name { get; set; }
+        public String user_email { get; set; }
     }
 
     class OAuthException extends Exception {

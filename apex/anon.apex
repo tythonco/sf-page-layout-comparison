@@ -1,5 +1,6 @@
-List<String> includedFields = SetupController.fetchPageLayoutIncludedFields(
+List<String> includedFields = ComparisonController.fetchPageLayoutIncludedFields(
     'session_id',
+    null,
     URL.getOrgDomainUrl().toExternalForm(),
     UserInfo.getUserName(),
     'Account',

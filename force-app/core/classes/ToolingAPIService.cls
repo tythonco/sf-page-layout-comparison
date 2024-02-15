@@ -9,7 +9,8 @@ public with sharing class ToolingAPIService {
         OAUTH_WEB_SERVER
     }
 
-    public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.OAUTH_DEVICE;
+    public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF;
+    public static final OAuthService.CMDT_UPSERT_METHOD DEFAULT_CMDT_UPSERT_METHOD = OAuthService.DEFAULT_CMDT_UPSERT_METHOD;
     public static final String DEFAULT_VERSION = '59.0';
 
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
@@ -17,6 +18,8 @@ public with sharing class ToolingAPIService {
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
 
     private final AUTH_METHOD authMethod;
+    private final OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod;
+    private final Boolean refreshTokenExistsForGivenOAuthFlow;
     private final String oauthFlow;
     private final String url;
     private final String username;
@@ -24,6 +27,7 @@ public with sharing class ToolingAPIService {
     public ToolingAPIService() {
         this(
             DEFAULT_AUTH_METHOD,
+            DEFAULT_CMDT_UPSERT_METHOD,
             DEFAULT_DOMAIN,
             DEFAULT_USERNAME,
             DEFAULT_VERSION
@@ -31,11 +35,12 @@ public with sharing class ToolingAPIService {
     }
 
     public ToolingAPIService(AUTH_METHOD authMethod) {
-        this(authMethod, DEFAULT_DOMAIN, DEFAULT_USERNAME, DEFAULT_VERSION);
+        this(authMethod, DEFAULT_CMDT_UPSERT_METHOD, DEFAULT_DOMAIN, DEFAULT_USERNAME, DEFAULT_VERSION);
     }
 
     public ToolingAPIService(
         AUTH_METHOD authMethod,
+        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
         String domain,
         String username,
         String version
@@ -44,28 +49,35 @@ public with sharing class ToolingAPIService {
         switch on authMethod {
             when OAUTH_CREDENTIALS {
                 this.oauthFlow = 'creds';
+                this.refreshTokenExistsForGivenOAuthFlow = false;
             }
             when OAUTH_DEVICE {
                 this.oauthFlow = 'device';
+                this.refreshTokenExistsForGivenOAuthFlow = true;
             }
             when OAUTH_JWT_KEY_PACKAGED {
                 this.oauthFlow = 'jwt_kp';
+                this.refreshTokenExistsForGivenOAuthFlow = false;
             }
             when OAUTH_JWT_ADMIN_KEY {
                 this.oauthFlow = 'jwt_ak';
+                this.refreshTokenExistsForGivenOAuthFlow = false;
             }
             when OAUTH_WEB_SERVER {
                 this.oauthFlow = 'web';
+                this.refreshTokenExistsForGivenOAuthFlow = true;
             }
             when else {
                 this.oauthFlow = 'unknown';
+                this.refreshTokenExistsForGivenOAuthFlow = false;
             }
         }
+        this.cmdtUpsertMethod = cmdtUpsertMethod;
         this.url = domain + '/services/data/v' + version + '/tooling/';
         this.username = username;
     }
 
-    public String makeCallout(String path, String contentType, String method) {
+    public String makeCallout(String path, String contentType, String method, Boolean saveOAuthResponse) {
         String accessToken;
         switch on this.authMethod {
             when CURRENT_USER_SESSIONID {
@@ -89,7 +101,8 @@ public with sharing class ToolingAPIService {
             contentType,
             method,
             accessToken.replace('\n', ''),
-            0
+            0,
+            saveOAuthResponse
         );
     }
 
@@ -98,7 +111,8 @@ public with sharing class ToolingAPIService {
         String contentType,
         String method,
         String accessToken,
-        Integer numAttempts
+        Integer numAttempts,
+        Boolean saveOAuthResponse
     ) {
         HttpRequest req = new HttpRequest();
         req.setEndpoint(endpoint);
@@ -116,35 +130,62 @@ public with sharing class ToolingAPIService {
                 );
                 if (errorResp[0].errorCode == 'INVALID_SESSION_ID') {
                     // Refresh access token and try again
-                    String refreshToken = OAuthService.getRefreshToken(
-                        this.oauthFlow,
-                        this.username
-                    );
-                    if (refreshToken == null) {
-                        throw new AuraHandledException(
-                            'No refresh token found for selected user; please reauthorize from app settings and then try again.'
-                        );
-                    }
                     OAuthService oauth = new OAuthService(
                         this.authMethod,
+                        this.cmdtUpsertMethod,
                         this.url.substringBefore('/services')
                     );
-                    OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromRefreshFlow(
-                        refreshToken
-                    );
+                    OAuthService.OAuthResponse resp;
+                    String refreshToken;
+                    if (this.refreshTokenExistsForGivenOAuthFlow) {
+                        refreshToken = OAuthService.getRefreshToken(
+                            this.oauthFlow,
+                            this.username
+                        );
+                        if (refreshToken == null) {
+                            throw new AuraHandledException(
+                                'No refresh token found for selected user; please reauthorize from app settings and then try again.'
+                            );
+                        }
+                        resp = oauth.generateAccessTokenFromRefreshFlow(
+                            refreshToken
+                        );
+                    }
+                    else {
+                        if (this.oauthFlow == 'creds') {
+                            resp = oauth.generateAccessTokenFromCredentialsFlow(false);
+                        } else if (this.oauthFlow == 'jwt_kp') {
+                            resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(this.username, false);
+                        } else if (this.oauthFlow == 'jwt_ak') {
+                            resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(OAuthService.getAdminProvidedCertificateName(this.username), OAuthService.getAdminProvidedConsumerKey(this.username), this.username, false);
+                        } else {
+                            throw new AuraHandledException(
+                                'Error: Session Id is invalid or not API-enabled!'
+                            );
+                        }
+                    }
                     if (resp.access_token != null) {
                         String calloutResp = makeCallout(
                             endpoint,
                             contentType,
                             method,
                             resp.access_token,
-                            1
+                            1,
+                            false
                         );
+                        if (refreshToken != null) {
+                            resp.refresh_token = refreshToken;
+                        }
                         // Saving the OAuth Response counts as a DML statement
                         // All DML must be done after the last callout completes
                         // This prevents the 'uncommitted work pending' error
-                        resp.refresh_token = refreshToken;
-                        oauth.saveOAuthResponse(resp);
+                        if (saveOAuthResponse) {
+                            if (this.oauthFlow == 'jwt_ak') {
+                                oauth.saveOAuthResponse(resp, OAuthService.getAdminProvidedCertificateName(this.username), OAuthService.getAdminProvidedConsumerKey(this.username));
+                            } else {
+                                oauth.saveOAuthResponse(resp);
+                            }
+                        }
                         return calloutResp;
                     } else if (
                         resp.error == 'invalid_grant' &&
