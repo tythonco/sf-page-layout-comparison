@@ -309,6 +309,18 @@
                             Salesforce and associate it with a new connected
                             app. Then you will need to pre-authorize users via
                             their profile or an assigned permission set.
+                            Connected Apps created in scratch or sandbox orgs cannot
+                            be installed in other orgs so it's recommended you create
+                            your connected app in a long-lived org such as production.
+                            After installing your connected app to another org you
+                            will need to import the digital certificate as well as
+                            pre-authorize users via their profile or an assigned
+                            permission set. If you are unable to import the digital
+                            certificate you must first enable Identity Provider
+                            (which first requires creating another digital certificate).
+                            After completing these steps you can then use the
+                            connected app consumer key along with the associated
+                            certificate name to authorize access to the org.
                         </div>
                     </div>
                 </div>
