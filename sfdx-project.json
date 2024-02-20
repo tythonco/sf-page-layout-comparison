@@ -1,10 +1,18 @@
 {
-    "packageDirectories": [
-        {
-            "path": "force-app",
-            "default": true
-        }
-    ],
-    "namespace": "tythondemo",
-    "sfdcLoginUrl": "https://login.salesforce.com"
+  "packageDirectories": [
+    {
+      "path": "force-app",
+      "default": true,
+      "package": "PageLayoutComparison",
+      "versionName": "ver 0.1",
+      "versionNumber": "0.1.0.NEXT",
+      "versionDescription": ""
+    }
+  ],
+  "namespace": "tythondemo",
+  "sfdcLoginUrl": "https://login.salesforce.com",
+  "packageAliases": {
+    "PageLayoutComparison": "0HoPH000000004r0AA",
+    "PageLayoutComparison@0.1.0-1": "04tPH0000006J6PYAU"
+  }
 }
