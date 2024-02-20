@@ -13,6 +13,7 @@
   "sfdcLoginUrl": "https://login.salesforce.com",
   "packageAliases": {
     "PageLayoutComparison": "0HoPH000000004r0AA",
-    "PageLayoutComparison@0.1.0-1": "04tPH0000006J6PYAU"
+    "PageLayoutComparison@0.1.0-1": "04tPH0000006J6PYAU",
+    "PageLayoutComparison@0.1.0-2": "04tPH0000006Sb7YAE"
   }
 }
