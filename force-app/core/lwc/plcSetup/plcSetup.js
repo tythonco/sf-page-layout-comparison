@@ -17,9 +17,6 @@ import validatePendingDeviceFlowAuthorization from '@salesforce/apex/SetupContro
 
 import { safeAwait } from 'c/plcUtils';
 
-import INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF from '@salesforce/resourceUrl/tythondemo__installCAforCredentialsFlow';
-import INSTALL_CA_FOR_JWT_KP_FLOW_GIF from '@salesforce/resourceUrl/tythondemo__installCAforJWTKPFlow';
-
 const AUTH_USER_COLUMNS = [
     { label: 'Domain', fieldName: 'domain', type: 'text' },
     { label: 'User', fieldName: 'usernameForDisplay', type: 'text' },
@@ -69,8 +66,6 @@ export default class PlcSetup extends LightningElement {
     columns = AUTH_USER_COLUMNS;
     currentStep = STEPS[0];
     deviceCode;
-    installCAforCredentialsFlowGIFUrl = INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF;
-    installCAforJWTKeyPackagedFlowGIFUrl = INSTALL_CA_FOR_JWT_KP_FLOW_GIF;
     isRevokeOAuthEnabledUserAccessDisabled = true;
     jwtKPAppId;
     jwtKPAppOrgId;
