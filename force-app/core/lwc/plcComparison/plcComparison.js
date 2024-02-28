@@ -18,9 +18,9 @@ const AUTH_METHOD_OPTIONS = [
     { label: 'OAuth (Web Server)', value: 'web' }
 ];
 
-const CMDT_UPSERT_METHOD_OPTIONS = [
-    { label: '`Metadata` Apex Class (Asynchronous)', value: 'apex' },
-    { label: 'Metadata API (Synchronous)', value: 'api' },
+const CREDS_UPSERT_METHOD_OPTIONS = [
+    { label: 'CMDTs (Asynchronous)', value: 'cmdt' },
+    { label: 'Custom Settings (Synchronous)', value: 'cs' }
 ];
 
 const FIELD_TABLE_COLUMNS = [
@@ -31,7 +31,7 @@ export default class PlcComparison extends LightningElement {
     authorizedUsers = [];
     selectedAuthMethod = 'session_id';
     selectedAuthorizedUser;
-    selectedCMDTUpsertMethod = 'apex';
+    selectedCredsUpsertMethod = 'cs';
     objectName = 'Account';
     pageLayoutName = 'Account Layout';
     isLoading;
@@ -58,8 +58,8 @@ export default class PlcComparison extends LightningElement {
         });
     }
 
-    get cmdtUpsertMethodOptions() {
-        return CMDT_UPSERT_METHOD_OPTIONS;
+    get credsUpsertMethodOptions() {
+        return CREDS_UPSERT_METHOD_OPTIONS;
     }
 
     get isOAuthMethodSelected() {
@@ -91,8 +91,10 @@ export default class PlcComparison extends LightningElement {
         this.selectedAuthorizedUser = event.detail.value;
     }
 
-    handleSelectCMDTUpsertMethod(event) {
-        this.selectedCMDTUpsertMethod = event.detail.value;
+    handleSelectCredsUpsertMethod(event) {
+        this.rows = [];
+        this.selectedCredsUpsertMethod = event.detail.value;
+        this.refreshAuthorizedUsers();
     }
 
     handleObjectNameChange(event) {
@@ -110,7 +112,7 @@ export default class PlcComparison extends LightningElement {
         this.rows = [];
         const params = {
             authMethod: this.selectedAuthMethod,
-            cmdtUpsertMethod: this.selectedCMDTUpsertMethod,
+            credsUpsertMethod: this.selectedCredsUpsertMethod,
             domain: this.selectedAuthorizedUser?.split(' - ')[1],
             username: this.selectedAuthorizedUser?.split(' - ')[0],
             objectName: this.objectName,
@@ -141,7 +143,9 @@ export default class PlcComparison extends LightningElement {
 
     async refreshAuthorizedUsers() {
         this.isLoading = true;
+        this.selectedAuthorizedUser = null;
         const params = {
+            credsUpsertMethod: this.selectedCredsUpsertMethod,
             oauthFlow: this.selectedAuthMethod
         };
         const [error, results] = await safeAwait(fetchAuthorizedUsers(params));

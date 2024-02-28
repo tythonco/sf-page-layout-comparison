@@ -2,7 +2,11 @@
 public with sharing class SetupControllerTest {
     @isTest
     static void testFetchAuthorizedUsers() {
-        List<SetupController.AuthorizedUser> authorizedUsers = SetupController.fetchAuthorizedUsers(null);
+        List<SetupController.AuthorizedUser> authorizedUsers = SetupController.fetchAuthorizedUsers(
+            'cmdt',
+            null
+        );
+        authorizedUsers = SetupController.fetchAuthorizedUsers('cs', null);
     }
 
     @isTest
@@ -12,7 +16,10 @@ public with sharing class SetupControllerTest {
 
     @isTest
     static void testFetchDeviceFlowAuthCodes() {
-        Map<String, String> deviceCodesByName = SetupController.fetchDeviceFlowAuthCodes('api', URL.getOrgDomainUrl().toExternalForm());
+        Map<String, String> deviceCodesByName = SetupController.fetchDeviceFlowAuthCodes(
+            'api',
+            URL.getOrgDomainUrl().toExternalForm()
+        );
     }
 
     @isTest
@@ -27,26 +34,38 @@ public with sharing class SetupControllerTest {
 
     @isTest
     static void testRevokeOAuthEnabledUserAccess() {
-        SetupController.revokeOAuthEnabledUserAccess('apex', 'test', new List<String>{'test'});
+        SetupController.revokeOAuthEnabledUserAccess(
+            'cmdt',
+            'test',
+            new List<String>{ 'test' }
+        );
     }
 
     @isTest
     static void testTestCredentialsFlowOrgDomainConnection() {
-        SetupController.testCredentialsFlowOrgDomainConnection('api', URL.getOrgDomainUrl().toExternalForm());
+        SetupController.testCredentialsFlowOrgDomainConnection(
+            'cs',
+            URL.getOrgDomainUrl().toExternalForm()
+        );
     }
 
     @isTest
     static void testJWTFlorOrgDomainConnection() {
-        SetupController.testJWTFlowOrgDomainConnection(new Map<String,String>{
-            'domain' => URL.getOrgDomainURL().toExternalForm(),
-            'flow' => 'jwt_kp',
-            'username' => UserInfo.getUserName()
-        });
+        SetupController.testJWTFlowOrgDomainConnection(
+            new Map<String, String>{
+                'domain' => URL.getOrgDomainURL().toExternalForm(),
+                'flow' => 'jwt_kp',
+                'username' => UserInfo.getUserName()
+            }
+        );
     }
 
     @isTest
     static void testValidatePendingDeviceFlowAuthorization() {
-        SetupController.validatePendingDeviceFlowAuthorization('apex', URL.getOrgDomainUrl().toExternalForm(), '12345');
+        SetupController.validatePendingDeviceFlowAuthorization(
+            'cmdt',
+            URL.getOrgDomainUrl().toExternalForm(),
+            '12345'
+        );
     }
-
 }

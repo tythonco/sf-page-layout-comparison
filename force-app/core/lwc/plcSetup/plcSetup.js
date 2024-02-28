@@ -17,8 +17,8 @@ import validatePendingDeviceFlowAuthorization from '@salesforce/apex/SetupContro
 
 import { safeAwait } from 'c/plcUtils';
 
-import INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF from '@salesforce/resourceUrl/installCAforCredentialsFlow';
-import INSTALL_CA_FOR_JWT_KP_FLOW_GIF from '@salesforce/resourceUrl/installCAforJWTKPFlow';
+import INSTALL_CA_FOR_CREDENTIALS_FLOW_GIF from '@salesforce/resourceUrl/tythondemo__installCAforCredentialsFlow';
+import INSTALL_CA_FOR_JWT_KP_FLOW_GIF from '@salesforce/resourceUrl/tythondemo__installCAforJWTKPFlow';
 
 const AUTH_USER_COLUMNS = [
     { label: 'Domain', fieldName: 'domain', type: 'text' },
@@ -26,9 +26,9 @@ const AUTH_USER_COLUMNS = [
     { label: 'Username', fieldName: 'username', type: 'text' }
 ];
 
-const CMDT_UPSERT_METHOD_OPTIONS = [
-    { label: '`Metadata` Apex Class (Asynchronous)', value: 'apex' },
-    { label: 'Metadata API (Synchronous)', value: 'api' },
+const CREDS_UPSERT_METHOD_OPTIONS = [
+    { label: 'CMDTs (Asynchronous)', value: 'cmdt' },
+    { label: 'Custom Settings (Synchronous)', value: 'cs' }
 ];
 
 const MAX_VALIDATION_ATTEMPTS = 10;
@@ -80,7 +80,7 @@ export default class PlcSetup extends LightningElement {
     oauthFlowTestUsername;
     orgDomain;
     orgDomainExternalUrl;
-    selectedCMDTUpsertMethod = 'apex';
+    selectedCredsUpsertMethod = 'cs';
     selectedOauthFlow = 'device';
     @track rows = [];
     userCode;
@@ -101,8 +101,8 @@ export default class PlcSetup extends LightningElement {
         return 'Install the connected app by clicking here';
     }
 
-    get cmdtUpsertMethodOptions() {
-        return CMDT_UPSERT_METHOD_OPTIONS;
+    get credsUpsertMethodOptions() {
+        return CREDS_UPSERT_METHOD_OPTIONS;
     }
 
     get clientCredentialsAppInstallUrlValue() {
@@ -225,11 +225,15 @@ export default class PlcSetup extends LightningElement {
         if (this.authVerified) {
             return;
         }
-        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
+        const credsUpsertMethod = this.selectedCredsUpsertMethod;
         const domain = this.orgDomain;
         const deviceCode = this.deviceCode;
         const [error, results] = await safeAwait(
-            validatePendingDeviceFlowAuthorization({ cmdtUpsertMethod, domain, deviceCode })
+            validatePendingDeviceFlowAuthorization({
+                credsUpsertMethod,
+                domain,
+                deviceCode
+            })
         );
         if (error) {
             console.error(error.body.message);
@@ -268,10 +272,10 @@ export default class PlcSetup extends LightningElement {
     }
 
     async fetchDeviceFlowAuthCodes() {
-        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
+        const credsUpsertMethod = this.selectedCredsUpsertMethod;
         const domain = this.orgDomain;
         const [error, results] = await safeAwait(
-            fetchDeviceFlowAuthCodes({ cmdtUpsertMethod, domain })
+            fetchDeviceFlowAuthCodes({ credsUpsertMethod, domain })
         );
         if (error) {
             console.error(error.body.message);
@@ -306,11 +310,11 @@ export default class PlcSetup extends LightningElement {
     }
 
     async handleCredentialsFlowTestOrgDomainConnection() {
-        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
+        const credsUpsertMethod = this.selectedCredsUpsertMethod;
         const domain = this.oauthFlowTestOrgDomain;
         const [error, results] = await safeAwait(
             testCredentialsFlowOrgDomainConnection({
-                cmdtUpsertMethod,
+                credsUpsertMethod,
                 domain
             })
         );
@@ -341,12 +345,12 @@ export default class PlcSetup extends LightningElement {
 
     async handleJWTFlowTestOrgDomainConnection() {
         const certName = this.oauthFlowTestCertName;
-        const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
+        const credsUpsertMethod = this.selectedCredsUpsertMethod;
         const consumerKey = this.oauthFlowTestConsumerKey;
         const domain = this.oauthFlowTestOrgDomain;
         const username = this.oauthFlowTestUsername;
         let params = {
-            cmdtUpsertMethod,
+            credsUpsertMethod,
             domain,
             username
         };
@@ -457,14 +461,14 @@ export default class PlcSetup extends LightningElement {
             });
             if (confirmRevoke) {
                 this.isLoading = true;
-                const cmdtUpsertMethod = this.selectedCMDTUpsertMethod;
+                const credsUpsertMethod = this.selectedCredsUpsertMethod;
                 const oauthFlow = this.selectedOauthFlow;
                 const usernamesToRevoke = selectedRows.map(
                     (item) => item.username
                 );
                 const [error] = await safeAwait(
                     revokeOAuthEnabledUserAccess({
-                        cmdtUpsertMethod,
+                        credsUpsertMethod,
                         oauthFlow,
                         usernamesToRevoke
                     })
@@ -477,6 +481,7 @@ export default class PlcSetup extends LightningElement {
                     (el) => !usernamesToRevoke.includes(el.username)
                 );
                 this.refreshTableRows();
+                this.isRevokeOAuthEnabledUserAccessDisabled = true;
                 const showToastEvent = new ShowToastEvent({
                     message:
                         'Successfully revoked access for the selected OAuth Enabled User(s)',
@@ -499,8 +504,9 @@ export default class PlcSetup extends LightningElement {
         }
     }
 
-    handleSelectCMDTUpsertMethod(event) {
-        this.selectedCMDTUpsertMethod = event.detail.value;
+    handleSelectCredsUpsertMethod(event) {
+        this.selectedCredsUpsertMethod = event.detail.value;
+        this.refreshAuthorizedUsers();
     }
 
     handleSelectOauthFlow(event) {
@@ -509,16 +515,21 @@ export default class PlcSetup extends LightningElement {
     }
 
     handleSuccessfulAuthorization() {
-        // Delay displaying success message to allow time for CMDT to deploy to org
-        window.setTimeout(() => {
+        const showToastEvent = new ShowToastEvent({
+            message: 'Successfully created new OAuth enabled user!',
+            title: 'Authorization Verified',
+            variant: 'success'
+        });
+        if (this.selectedCredsUpsertMethod === 'cmdt') {
+            // Delay displaying success message to allow time for CMDT to deploy to org
+            window.setTimeout(() => {
+                this.authVerified = true;
+                this.dispatchEvent(showToastEvent);
+            }, SUCCESS_DELAY);
+        } else {
             this.authVerified = true;
-            const showToastEvent = new ShowToastEvent({
-                message: 'Successfully created new OAuth enabled user!',
-                title: 'Authorization Verified',
-                variant: 'success'
-            });
             this.dispatchEvent(showToastEvent);
-        }, SUCCESS_DELAY);
+        }
     }
 
     handleRefreshTable() {
@@ -536,14 +547,15 @@ export default class PlcSetup extends LightningElement {
             source +
             '&target=' +
             target +
-            '&cmdtUpsertMethod=' +
-            this.selectedCMDTUpsertMethod;
+            '&credsUpsertMethod=' +
+            this.selectedCredsUpsertMethod;
         window.open(webFlowServerUrl, '_blank').focus();
     }
 
     async refreshAuthorizedUsers() {
         this.isLoading = true;
         const params = {
+            credsUpsertMethod: this.selectedCredsUpsertMethod,
             oauthFlow: this.selectedOauthFlow
         };
         const [error, results] = await safeAwait(fetchAuthorizedUsers(params));

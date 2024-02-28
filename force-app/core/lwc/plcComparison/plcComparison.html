@@ -17,13 +17,13 @@
                 </lightning-combobox>
                 <lightning-combobox
                     if:true={isOAuthMethodSelected}
-                    class="cmdt-settings"
+                    class="creds-settings"
                     dropdown-alignment="right"
-                    name="cmdtUpserMethodSelector"
-                    value={selectedCMDTUpsertMethod}
-                    label="CMDT Upsert Method"
-                    onchange={handleSelectCMDTUpsertMethod}
-                    options={cmdtUpsertMethodOptions}
+                    name="credsUpserMethodSelector"
+                    value={selectedCredsUpsertMethod}
+                    label="Creds Upsert Method"
+                    onchange={handleSelectCredsUpsertMethod}
+                    options={credsUpsertMethodOptions}
                 >
                 </lightning-combobox>
                 <div>

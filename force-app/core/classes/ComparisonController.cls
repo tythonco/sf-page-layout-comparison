@@ -2,7 +2,7 @@ public with sharing class ComparisonController {
     @AuraEnabled
     public static List<String> fetchPageLayoutIncludedFields(
         String authMethod,
-        String cmdtUpsertMethod,
+        String credsUpsertMethod,
         String domain,
         String username,
         String objectName,
@@ -40,18 +40,18 @@ public with sharing class ComparisonController {
                     apiAuthMethod = ToolingAPIService.DEFAULT_AUTH_METHOD;
                 }
             }
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;            
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             String layoutsForObjectJson = LayoutService.getLayoutsForObject(
                 apiAuthMethod,
-                cmdtUpsertChannel,
+                credsUpsertChannel,
                 domain,
                 username,
                 objectName
@@ -73,7 +73,7 @@ public with sharing class ComparisonController {
             if (matchingLayoutId != null) {
                 LayoutDetail layout = LayoutService.getLayoutDetailInfo(
                     apiAuthMethod,
-                    cmdtUpsertChannel,
+                    credsUpsertChannel,
                     domain,
                     username,
                     matchingLayoutId

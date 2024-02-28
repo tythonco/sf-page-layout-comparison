@@ -8,9 +8,12 @@ public with sharing class OAuthService {
     private String authEndpoint;
     private ToolingApiService.AUTH_METHOD authMethod;
     private ConnectedApp ca;
-    private CMDT_UPSERT_METHOD cmdtUpsertMethod;
+    private OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod;
     private String nsPrefix;
 
+    private static final Map<String, Object> TEST_SESSION_ID_INFO = new Map<String, Object>{
+        'sessionId' => '12345'
+    };
     private static final OAuthResponse TEST_OAUTH_RESP_DEVICE_CODES = (OAuthResponse) JSON.deserialize(
         '{"device_code":"abc","user_code":"123"}',
         OAuthResponse.class
@@ -24,24 +27,32 @@ public with sharing class OAuthService {
         OAuthResponse.class
     );
 
-    public static final CMDT_UPSERT_METHOD DEFAULT_CMDT_UPSERT_METHOD = CMDT_UPSERT_METHOD.APEX;
+    public static final OAUTH_CREDS_UPSERT_METHOD DEFAULT_OAUTH_CREDS_UPSERT_METHOD = OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
 
-    public enum CMDT_UPSERT_METHOD {
-        APEX,
-        API
+    public enum OAUTH_CREDS_UPSERT_METHOD {
+        CMDT,
+        CUSTOM_SETTINGS
     }
 
     public OAuthService() {
-        this(DEFAULT_AUTH_METHOD, DEFAULT_CMDT_UPSERT_METHOD, DEFAULT_DOMAIN);
+        this(
+            DEFAULT_AUTH_METHOD,
+            DEFAULT_OAUTH_CREDS_UPSERT_METHOD,
+            DEFAULT_DOMAIN
+        );
     }
 
     public OAuthService(String domain) {
-        this(DEFAULT_AUTH_METHOD, DEFAULT_CMDT_UPSERT_METHOD, domain);
+        this(DEFAULT_AUTH_METHOD, DEFAULT_OAUTH_CREDS_UPSERT_METHOD, domain);
+    }
+
+    public OAuthService(OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod) {
+        this(DEFAULT_AUTH_METHOD, credsUpsertMethod, DEFAULT_DOMAIN);
     }
 
     public OAuthService(
         ToolingApiService.AUTH_METHOD authMethod,
-        CMDT_UPSERT_METHOD cmdtUpsertMethod,
+        OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod,
         String domain
     ) {
         String caName;
@@ -64,7 +75,7 @@ public with sharing class OAuthService {
         }
         this.authEndpoint = domain + '/services/oauth2/token';
         this.authMethod = authMethod;
-        this.cmdtUpsertMethod = cmdtUpsertMethod;
+        this.credsUpsertMethod = credsUpsertMethod;
         ConnectedApp__mdt connectedApp = ConnectedAppSelector.fetchByName(
             caName
         );
@@ -77,25 +88,6 @@ public with sharing class OAuthService {
             : null;
     }
 
-    public void deleteOAuthCredsCMDT(Map<String, OAuthService.OAuthCredentials> credsToDeleteByFullNames) {
-        MetadataService.MetadataPort service = new MetadataService.MetadataPort();
-        service.SessionHeader = new MetadataService.SessionHeader_element();
-        service.SessionHeader.sessionId = OAuthService.getToken();
-        service.CallOptions = new MetadataService.CallOptions_element();
-        service.timeout_x = 120000;
-
-        try {
-            service.deleteMetadata(
-                'CustomMetadata',
-                new List<String>(credsToDeleteByFullNames.keySet())
-            );
-        } catch (System.Exception e) {
-            throw new CustomMetadataException(
-                'Custom Metadata Delete Failure: ' + e.getMessage()
-            );
-        }
-    }
-
     public static String getToken() {
         String oauthFlow;
         switch on DEFAULT_AUTH_METHOD {
@@ -103,9 +95,11 @@ public with sharing class OAuthService {
                 return UserInfo.getSessionId();
             }
             when CURRENT_USER_SESSIONID_FROM_VF {
-                Map<String, Object> sessionIdInfo = (Map<String, Object>) JSON.deserializeUntyped(
-                    Page.SessionId.getContent().toString()
-                );
+                Map<String, Object> sessionIdInfo = Test.isRunningTest()
+                    ? TEST_SESSION_ID_INFO
+                    : (Map<String, Object>) JSON.deserializeUntyped(
+                          Page.SessionId.getContent().toString()
+                      );
                 return (String) sessionIdInfo.get('sessionId');
             }
             when OAUTH_CREDENTIALS {
@@ -132,6 +126,15 @@ public with sharing class OAuthService {
 
     public static String getToken(String oauthFlow, String username) {
         return (getOAuthCreds(oauthFlow, username)).access_token;
+    }
+
+    public static String getToken(
+        String oauthFlow,
+        String username,
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod
+    ) {
+        return (getOAuthCreds(oauthFlow, username, credsUpsertMethod))
+            .access_token;
     }
 
     public static String getRefreshToken() {
@@ -182,7 +185,9 @@ public with sharing class OAuthService {
         return generateAccessTokenFromCredentialsFlow(true);
     }
 
-    public OAuthResponse generateAccessTokenFromCredentialsFlow(Boolean saveOauthResponse) {
+    public OAuthResponse generateAccessTokenFromCredentialsFlow(
+        Boolean saveOauthResponse
+    ) {
         String body =
             'grant_type=client_credentials&client_id=' +
             EncodingUtil.urlEncode(this.ca.client_id, 'UTF-8') +
@@ -209,7 +214,12 @@ public with sharing class OAuthService {
         String consumerKey,
         String username
     ) {
-        return generateAccessTokenFromJWTAdminKeyFlow(certName, consumerKey, username, true);
+        return generateAccessTokenFromJWTAdminKeyFlow(
+            certName,
+            consumerKey,
+            username,
+            true
+        );
     }
 
     public OAuthResponse generateAccessTokenFromJWTAdminKeyFlow(
@@ -242,7 +252,11 @@ public with sharing class OAuthService {
                     OAuthResponse.class
                 );
 
-                if (res.getStatusCode() == 200 && oauthResponse.id != null && saveOAuthResponse) {
+                if (
+                    res.getStatusCode() == 200 &&
+                    oauthResponse.id != null &&
+                    saveOAuthResponse
+                ) {
                     saveOAuthResponse(oauthResponse, certName, consumerKey);
                 }
                 return oauthResponse;
@@ -311,27 +325,23 @@ public with sharing class OAuthService {
         return (getOAuthCreds('jwt_ak', username)).consumer_key;
     }
 
-    public void upsertOAuthCredsCMDT(OAuthCredentials creds) {
-        upsertOAuthCredsCMDT(new List<OAuthCredentials>{ creds });
+    public void upsertOAuthCreds(OAuthCredentials creds) {
+        upsertOAuthCreds(new List<OAuthCredentials>{ creds });
     }
 
-    public void upsertOAuthCredsCMDT(List<OAuthCredentials> credsList) {
-        upsertOAuthCredsCMDT(credsList, null);
-    }
-
-    public void upsertOAuthCredsCMDT(OAuthCredentials creds, String accessTokenOverride) {
-        upsertOAuthCredsCMDT(new List<OAuthCredentials>{ creds }, accessTokenOverride);
-    }
-
-    public void upsertOAuthCredsCMDT(List<OAuthCredentials> credsList, String accessTokenOverride) {
-        if (this.cmdtUpsertMethod == CMDT_UPSERT_METHOD.APEX) {
-            upsertOauthCredsCMDTByApex(credsList);
-        } else if (this.cmdtUpsertMethod == CMDT_UPSERT_METHOD.API) {
-            upsertOauthCredsCMDTByApi(credsList, accessTokenOverride);
+    public void upsertOAuthCreds(List<OAuthCredentials> credsList) {
+        if (this.credsUpsertMethod == OAUTH_CREDS_UPSERT_METHOD.CMDT) {
+            upsertOauthCredsAsCMDTByApex(credsList);
+        } else if (
+            this.credsUpsertMethod == OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS
+        ) {
+            upsertOauthCredsAsCustomSettings(credsList);
         }
     }
 
-    private void upsertOAuthCredsCMDTByApex(List<OAuthCredentials> credsList) {
+    private void upsertOAuthCredsAsCMDTByApex(
+        List<OAuthCredentials> credsList
+    ) {
         Metadata.DeployContainer mdContainer = new Metadata.DeployContainer();
         for (OAuthCredentials creds : credsList) {
             Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
@@ -361,67 +371,112 @@ public with sharing class OAuthService {
             );
         }
     }
-    
-    private void upsertOAuthCredsCMDTByApi(List<OAuthCredentials> credsList, String accessTokenOverride) {
+
+    private void upsertOAuthCredsAsCustomSettings(
+        List<OAuthCredentials> credsList
+    ) {
+        List<OAuthCredentials__c> credsSettings = new List<OAuthCredentials__c>();
         for (OAuthCredentials creds : credsList) {
-            List<MetadataService.Metadata> metadataToUpsert = new List<MetadataService.Metadata>();
-            MetadataService.CustomMetadata cmdt = new MetadataService.CustomMetadata();
-            String fullNameWithoutNS =
-                'OAuthCreds.' +
-                OAuthCredsSelector.sanitize(
-                    creds.oauth_flow +
-                    '_' +
-                    creds.user_username
-                );
-            cmdt.fullName = nsPrefix != null
-                ? nsPrefix + '__' + fullNameWithoutNS
-                : fullNameWithoutNS;
-            cmdt.label = creds.user_username;
-            MetadataService.CustomMetadataValue cmdtValue = new MetadataService.CustomMetadataValue();
-            cmdtValue.field = nsPrefix != null
-                ? nsPrefix + '__' + 'Value__c'
-                : 'Value__c';
-            cmdtValue.value = JSON.serialize(creds, true);
-            cmdt.values = new List<MetadataService.CustomMetadataValue>{
-                cmdtValue
-            };
-            metadataToUpsert.add(cmdt);
-
-            MetadataService.MetadataPort service = new MetadataService.MetadataPort();
-            service.SessionHeader = new MetadataService.SessionHeader_element();
-            service.SessionHeader.sessionId = accessTokenOverride != null ? accessTokenOverride : OAuthService.getToken();
-            service.CallOptions = new MetadataService.CallOptions_element();
-            service.timeout_x = 120000;
-
-            try {                
-                service.upsertMetadata(metadataToUpsert);
-            } catch (System.Exception e) {
-                throw new CustomMetadataException(
-                    'Custom Metadata Upsert Failure: ' + e.getMessage()
-                );
-            }
-        }        
+            credsSettings.add(
+                new OAuthCredentials__c(
+                    Name = OAuthCredsSelector.sanitize(
+                        creds.oauth_flow +
+                        '_' +
+                        creds.user_username
+                    ),
+                    is_dev_edition__c = creds.is_dev_edition,
+                    is_sandbox__c = creds.is_sandbox,
+                    is_scratch__c = creds.is_scratch,
+                    access_token__c = creds.access_token,
+                    refresh_token__c = creds.refresh_token,
+                    instance_url__c = creds.instance_url,
+                    organization_id__c = creds.organization_id,
+                    user_id__c = creds.user_id,
+                    user_username__c = creds.user_username,
+                    user_display_name__c = creds.user_display_name,
+                    user_email__c = creds.user_email
+                )
+            );
+        }
+        upsert credsSettings Name;
     }
 
     private static OAuthCredentials getOAuthCreds(
         String oauthFlow,
         String username
     ) {
-        List<OAuthCreds__mdt> storedCreds = OAuthCredsSelector.fetchByUsername(
+        return getOAuthCreds(
             oauthFlow,
-            username
+            username,
+            OAuthService.DEFAULT_OAUTH_CREDS_UPSERT_METHOD
         );
-        if (!Test.isRunningTest() && storedCreds.isEmpty()) {
-            throwUnauthorizedUserError();
-        }
-        OAuthCredentials oauthCreds = (OAuthCredentials) JSON.deserialize(
-            Test.isRunningTest()
-                ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
-                : storedCreds[0].Value__c,
-            OAuthCredentials.class
-        );
-        if (oauthCreds == null || oauthCreds.access_token == null) {
-            throwUnauthorizedUserError();
+    }
+
+    private static OAuthCredentials getOAuthCreds(
+        String oauthFlow,
+        String username,
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod
+    ) {
+        OAuthCredentials oauthCreds;
+        switch on credsUpsertMethod {
+            when CMDT {
+                List<OAuthCreds__mdt> storedCreds = OAuthCredsSelector.fetchCMDTByUsername(
+                    oauthFlow,
+                    username
+                );
+                if (!Test.isRunningTest() && storedCreds.isEmpty()) {
+                    throwUnauthorizedUserError();
+                }
+                oauthCreds = (OAuthCredentials) JSON.deserialize(
+                    Test.isRunningTest()
+                        ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
+                        : storedCreds[0].Value__c,
+                    OAuthCredentials.class
+                );
+                if (oauthCreds == null || oauthCreds.access_token == null) {
+                    throwUnauthorizedUserError();
+                }
+            }
+            when CUSTOM_SETTINGS {
+                List<OAuthCredentials__c> storedCreds = OAuthCredsSelector.fetchCustomSettingsByUsername(
+                    oauthFlow,
+                    username
+                );
+                if (!Test.isRunningTest() && storedCreds.isEmpty()) {
+                    throwUnauthorizedUserError();
+                }
+                oauthCreds = Test.isRunningTest()
+                    ? (OAuthCredentials) JSON.deserialize(
+                          OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE,
+                          OAuthCredentials.class
+                      )
+                    : new OAuthCredentials();
+                if (!Test.isRunningTest()) {
+                    oauthCreds.user_username = storedCreds[0].user_username__c;
+                    oauthCreds.oauth_flow = storedCreds[0]
+                        .Name.substringBefore(
+                            OAuthCredsSelector.sanitize(
+                                '_' + storedCreds[0].user_username__c
+                            )
+                        );
+                    oauthCreds.is_dev_edition = storedCreds[0]
+                        .is_dev_edition__c;
+                    oauthCreds.is_sandbox = storedCreds[0].is_sandbox__c;
+                    oauthCreds.is_scratch = storedCreds[0].is_scratch__c;
+                    oauthCreds.access_token = storedCreds[0].access_token__c;
+                    oauthCreds.refresh_token = storedCreds[0].refresh_token__c;
+                    oauthCreds.instance_url = storedCreds[0].instance_url__c;
+                    oauthCreds.organization_id = storedCreds[0]
+                        .organization_id__c;
+                    oauthCreds.user_id = storedCreds[0].user_id__c;
+                    oauthCreds.user_display_name = storedCreds[0]
+                        .user_display_name__c;
+                    oauthCreds.user_email = storedCreds[0].user_email__c;
+                }
+                if (oauthCreds == null || oauthCreds.access_token == null) {
+                    throwUnauthorizedUserError();
+                }
+            }
         }
         return oauthCreds;
     }
@@ -480,7 +535,11 @@ public with sharing class OAuthService {
         saveOAuthResponse(oauthResponse, null, null);
     }
 
-    public void saveOAuthResponse(OAuthResponse oauthResponse, String adminProvidedCertName, String adminProvidedConsumerKey) {
+    public void saveOAuthResponse(
+        OAuthResponse oauthResponse,
+        String adminProvidedCertName,
+        String adminProvidedConsumerKey
+    ) {
         String idRequestBody =
             'access_token=' +
             EncodingUtil.urlEncode(oauthResponse.access_token, 'UTF-8') +
@@ -566,7 +625,7 @@ public with sharing class OAuthService {
         creds.user_display_name = idOauthResponse.display_name;
         creds.user_email = idOauthResponse.email;
 
-        upsertOAuthCredsCMDT(creds);
+        upsertOAuthCreds(creds);
     }
 
     private static void throwUnauthorizedUserError() {

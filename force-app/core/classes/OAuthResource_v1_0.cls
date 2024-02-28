@@ -9,7 +9,7 @@ global with sharing class OAuthResource_v1_0 {
             Map<String, Object> params = (Map<String, Object>) JSON.deserializeUntyped(
                 RestContext.request.requestBody.toString()
             );
-            upsertOAuthCredsCMDT(params);
+            upsertOAuthCreds(params);
             responseMap.put('success', true);
             res.statusCode = 200;
         } catch (Exception e) {
@@ -25,16 +25,16 @@ global with sharing class OAuthResource_v1_0 {
         res.responseBody = Blob.valueOf(JSON.serialize(responseMap));
     }
 
-    private static void upsertOAuthCredsCMDT(Map<String, Object> params) {
+    private static void upsertOAuthCreds(Map<String, Object> params) {
         OAuthService.OAuthCredentials creds = new OAuthService.OAuthCredentials();
-        String cmdtUpsertMethod = (String) params.get('cmdt_upsert_method');
-        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-        switch on cmdtUpsertMethod {
-            when 'apex' {
-                cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+        String credsUpsertMethod = (String) params.get('creds_upsert_method');
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+        switch on credsUpsertMethod {
+            when 'cmdt' {
+                credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
             }
-            when 'api' {
-                cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+            when 'cs' {
+                credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
             }
         }
         String domain = (String) params.get('domain');
@@ -66,9 +66,9 @@ global with sharing class OAuthResource_v1_0 {
             creds.user_id;
         OAuthService auth = new OAuthService(
             ToolingAPIService.AUTH_METHOD.OAUTH_WEB_SERVER,
-            cmdtUpsertChannel,
+            credsUpsertChannel,
             URL.getOrgDomainUrl().toExternalForm()
         );
-        auth.upsertOAuthCredsCMDT(creds, (String) params.get('source_access_token'));
+        auth.upsertOAuthCreds(creds);
     }
 }

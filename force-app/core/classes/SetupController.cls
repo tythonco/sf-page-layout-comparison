@@ -1,25 +1,69 @@
 public with sharing class SetupController {
     @AuraEnabled
-    public static List<AuthorizedUser> fetchAuthorizedUsers(String oauthFlow) {
+    public static List<AuthorizedUser> fetchAuthorizedUsers(
+        String credsUpsertMethod,
+        String oauthFlow
+    ) {
         List<AuthorizedUser> authUsers = new List<AuthorizedUser>();
-        List<OAuthCreds__mdt> allCreds = OAuthCredsSelector.fetchAll();
-        for (OAuthCreds__mdt credsCMDT : allCreds) {
-            OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
-                Test.isRunningTest() ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE : credsCMDT.Value__c,
-                OAuthService.OAuthCredentials.class
-            );
-            if (creds.oauth_flow == oauthFlow) {
-                if (creds.oauth_flow == 'jwt' || creds.access_token != null) {
-                    authUsers.add(
-                        new AuthorizedUser(
-                            creds.domain,
-                            creds.user_username,
-                            creds.user_display_name
-                        )
-                    );
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+        switch on credsUpsertMethod {
+            when 'cmdt' {
+                credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
+            }
+            when 'cs' {
+                credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
+            }
+        }
+        if (credsUpsertChannel == OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT) {
+            List<OAuthCreds__mdt> allCreds = OAuthCredsSelector.fetchAllCMDTs();
+            for (OAuthCreds__mdt credsCMDT : allCreds) {
+                OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
+                    Test.isRunningTest()
+                        ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
+                        : credsCMDT.Value__c,
+                    OAuthService.OAuthCredentials.class
+                );
+                if (creds.oauth_flow == oauthFlow) {
+                    if (
+                        creds.oauth_flow == 'jwt' ||
+                        creds.access_token != null
+                    ) {
+                        authUsers.add(
+                            new AuthorizedUser(
+                                creds.domain,
+                                creds.user_username,
+                                creds.user_display_name
+                            )
+                        );
+                    }
+                }
+            }
+        } else if (
+            credsUpsertChannel ==
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS
+        ) {
+            List<OAuthCredentials__c> allCreds = OAuthCredsSelector.fetchAllCustomSettings();
+            for (OAuthCredentials__c creds : allCreds) {
+                String credsOauthFlow = creds.Name.substringBefore(
+                    OAuthCredsSelector.sanitize('_' + creds.user_username__c)
+                );
+                if (credsOauthFlow == oauthFlow) {
+                    if (
+                        credsOauthFlow == 'jwt' ||
+                        creds.access_token__c != null
+                    ) {
+                        authUsers.add(
+                            new AuthorizedUser(
+                                creds.instance_url__c,
+                                creds.user_username__c,
+                                creds.user_display_name__c
+                            )
+                        );
+                    }
                 }
             }
         }
+
         return authUsers;
     }
 
@@ -49,21 +93,24 @@ public with sharing class SetupController {
     }
 
     @AuraEnabled
-    public static Map<String, String> fetchDeviceFlowAuthCodes(String cmdtUpsertMethod, String domain) {
+    public static Map<String, String> fetchDeviceFlowAuthCodes(
+        String credsUpsertMethod,
+        String domain
+    ) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
-                cmdtUpsertChannel,
+                credsUpsertChannel,
                 authEndpoint
             );
             return oauth.generateCodesFromDeviceFlow();
@@ -94,64 +141,36 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static void revokeOAuthEnabledUserAccess(
-        String cmdtUpsertMethod,
+        String credsUpsertMethod,
         String oauthFlow,
         List<String> usernamesToRevoke
     ) {
         try {
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             List<OAuthService.OAuthCredentials> credsToRevoke = new List<OAuthService.OAuthCredentials>();
-            List<OAuthCreds__mdt> allOAuthCredCMDTsToRevoke = OAuthCredsSelector.fetchByUsernames(
-                oauthFlow,
-                userNamesToRevoke
-            );
 
-            OAuthService oauth = new OAuthService();
+            if (
+                credsUpsertChannel ==
+                OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT
+            ) {
+                // CMDTs cannot be deleted via the `Metadata` Apex class
+                // Clearing the access & refresh tokens will serve to revoke access
+                List<OAuthCreds__mdt> allOAuthCredCMDTsToRevoke = OAuthCredsSelector.fetchCMDTsByUsernames(
+                    oauthFlow,
+                    userNamesToRevoke
+                );
 
-            if (cmdtUpsertChannel == OAuthService.CMDT_UPSERT_METHOD.API) {
-                // CMDTs can be deleted via the Metadata API
-                Map<String, OAuthService.OAuthCredentials> credsToRevokeByFullNames = new Map<String, OAuthService.OAuthCredentials>();
                 for (
                     OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke
                 ) {
-                    String nsPrefix = oauthCredCMDT?.NamespacePrefix != null &&
-                        oauthCredCMDT.NamespacePrefix != ''
-                        ? oauthCredCMDT.NamespacePrefix
-                        : null;
-                    String fullName = nsPrefix != null
-                        ? nsPrefix +
-                        '__' +
-                        'OAuthCreds__mdt' +
-                        '.' +
-                        oauthCredCMDT.QualifiedApiName
-                        : 'OAuthCreds__mdt' +
-                        '.' +
-                        oauthCredCMDT.QualifiedApiName;
-                    OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
-                        Test.isRunningTest()
-                            ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
-                            : oauthCredCMDT.Value__c,
-                        OAuthService.OAuthCredentials.class
-                    );
-                    credsToRevokeByFullNames.put(fullName, creds);
-                }
-                if (!Test.isRunningTest()) {
-                    oauth.deleteOAuthCredsCMDT(credsToRevokeByFullNames);
-                }
-            }
-
-            else if (cmdtUpsertChannel == OAuthService.CMDT_UPSERT_METHOD.APEX) {
-                // CMDTs cannot be deleted via the `Metadata` Apex class
-                // Clearing the access & refresh tokens will serve to revoke access
-                for (OAuthCreds__mdt oauthCredCMDT : allOAuthCredCMDTsToRevoke) {
                     OAuthService.OAuthCredentials creds = (OAuthService.OAuthCredentials) JSON.deserialize(
                         Test.isRunningTest()
                             ? OAuthCredsSelector.TEST_OAUTH_CREDS_VALUE
@@ -163,9 +182,23 @@ public with sharing class SetupController {
                     credsToRevoke.add(creds);
                 }
 
-                if (!Test.isRunningTest()) {                    
-                    oauth.upsertOAuthCredsCMDT(credsToRevoke, null);
+                if (!Test.isRunningTest()) {
+                    OAuthService oauth = new OAuthService(
+                        OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT
+                    );
+                    oauth.upsertOAuthCreds(credsToRevoke);
                 }
+            }
+
+            if (
+                credsUpsertChannel ==
+                OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS
+            ) {
+                List<OAuthCredentials__c> customSettingsToDelete = OAuthCredsSelector.fetchCustomSettingsByUsernames(
+                    oauthFlow,
+                    usernamesToRevoke
+                );
+                delete customSettingsToDelete;
             }
         } catch (Exception e) {
             throw new AuraHandledException(
@@ -177,23 +210,23 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static Map<String, Object> testCredentialsFlowOrgDomainConnection(
-        String cmdtUpsertMethod,
+        String credsUpsertMethod,
         String domain
     ) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_CREDENTIALS,
-                cmdtUpsertChannel,
+                credsUpsertChannel,
                 authEndpoint
             );
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromCredentialsFlow();
@@ -226,14 +259,14 @@ public with sharing class SetupController {
         Map<String, String> params
     ) {
         try {
-            String cmdtUpsertMethod = params.get('cmdtUpsertMethod');
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            String credsUpsertMethod = params.get('credsUpsertMethod');
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             String domain = params.get('domain');
@@ -246,7 +279,7 @@ public with sharing class SetupController {
                 // Packaged Key
                 oauth = new OAuthService(
                     ToolingApiService.AUTH_METHOD.OAUTH_JWT_KEY_PACKAGED,
-                    cmdtUpsertChannel,
+                    credsUpsertChannel,
                     authEndpoint
                 );
                 resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(
@@ -258,7 +291,7 @@ public with sharing class SetupController {
                 String consumerKey = params.get('consumerKey');
                 oauth = new OAuthService(
                     ToolingApiService.AUTH_METHOD.OAUTH_JWT_ADMIN_KEY,
-                    cmdtUpsertChannel,
+                    credsUpsertChannel,
                     authEndpoint
                 );
                 resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(
@@ -293,24 +326,24 @@ public with sharing class SetupController {
 
     @AuraEnabled
     public static Map<String, Object> validatePendingDeviceFlowAuthorization(
-        String cmdtUpsertMethod,
+        String credsUpsertMethod,
         String domain,
         String deviceCode
     ) {
         try {
             String authEndpoint = 'https://' + domain + '.my.salesforce.com';
-            OAuthService.CMDT_UPSERT_METHOD cmdtUpsertChannel;
-            switch on cmdtUpsertMethod {
-                when 'apex' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.APEX;
+            OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertChannel;
+            switch on credsUpsertMethod {
+                when 'cmdt' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CMDT;
                 }
-                when 'api' {
-                    cmdtUpsertChannel = OAuthService.CMDT_UPSERT_METHOD.API;
+                when 'cs' {
+                    credsUpsertChannel = OAuthService.OAUTH_CREDS_UPSERT_METHOD.CUSTOM_SETTINGS;
                 }
             }
             OAuthService oauth = new OAuthService(
                 ToolingApiService.AUTH_METHOD.OAUTH_DEVICE,
-                cmdtUpsertChannel,
+                credsUpsertChannel,
                 authEndpoint
             );
             OAuthService.OAuthResponse resp = oauth.generateAccessTokenFromDeviceFlow(

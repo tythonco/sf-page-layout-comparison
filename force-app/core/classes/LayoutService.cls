@@ -1,13 +1,13 @@
 public with sharing class LayoutService {
-    private static final Map<String,Object> TEST_LAYOUTS_FOR_OBJECT = new Map<String,Object>{
+    private static final Map<String, Object> TEST_LAYOUTS_FOR_OBJECT = new Map<String, Object>{
         'records' => new List<Object>{
-            new Map<String,String>{
+            new Map<String, String>{
                 'Name' => 'Account Layout',
                 'Id' => '00h000000000000'
             }
         }
     };
-    private static final Map<String,Object> TEST_LAYOUT;
+    private static final Map<String, Object> TEST_LAYOUT;
     static {
         Layout.LayoutItem testLayoutItem1 = new Layout.LayoutItem();
         testLayoutItem1.field = 'test_field_1';
@@ -23,13 +23,13 @@ public with sharing class LayoutService {
             testLayoutColumn
         };
 
-        TEST_LAYOUT = new Map<String,Object>{
+        TEST_LAYOUT = new Map<String, Object>{
             'id' => '00h000000000000',
             'name' => 'Account Layout',
             'createdById' => '005000000000000',
             'createdDate' => Datetime.now().format('yyyy-MM-dd'),
             'fullName' => 'Account-Account Layout',
-            'metadata' => new Map<String,Object>{
+            'metadata' => new Map<String, Object>{
                 'layoutSections' => new List<Layout.LayoutSection>{
                     testLayoutSection
                 }
@@ -40,14 +40,14 @@ public with sharing class LayoutService {
     @AuraEnabled
     public static String getLayoutsForObject(
         ToolingAPIService.AUTH_METHOD authMethod,
-        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod,
         String domain,
         String username,
         String objectName
     ) {
         ToolingAPIService api = new ToolingAPIService(
             authMethod,
-            cmdtUpsertMethod,
+            credsUpsertMethod,
             domain,
             username,
             ToolingApiService.DEFAULT_VERSION
@@ -63,14 +63,14 @@ public with sharing class LayoutService {
 
     public static LayoutDetail getLayoutDetailInfo(
         ToolingAPIService.AUTH_METHOD authMethod,
-        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod,
         String domain,
         String username,
         Id layoutId
     ) {
         ToolingAPIService api = new ToolingAPIService(
             authMethod,
-            cmdtUpsertMethod,
+            credsUpsertMethod,
             domain,
             username,
             ToolingApiService.DEFAULT_VERSION

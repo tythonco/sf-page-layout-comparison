@@ -10,7 +10,7 @@ public with sharing class ToolingAPIService {
     }
 
     public static final AUTH_METHOD DEFAULT_AUTH_METHOD = AUTH_METHOD.CURRENT_USER_SESSIONID_FROM_VF;
-    public static final OAuthService.CMDT_UPSERT_METHOD DEFAULT_CMDT_UPSERT_METHOD = OAuthService.DEFAULT_CMDT_UPSERT_METHOD;
+    public static final OAuthService.OAUTH_CREDS_UPSERT_METHOD DEFAULT_OAUTH_CREDS_UPSERT_METHOD = OAuthService.DEFAULT_OAUTH_CREDS_UPSERT_METHOD;
     public static final String DEFAULT_VERSION = '59.0';
 
     private static final String DEFAULT_DOMAIN = URL.getOrgDomainUrl()
@@ -18,7 +18,7 @@ public with sharing class ToolingAPIService {
     private static final String DEFAULT_USERNAME = UserInfo.getUserName();
 
     private final AUTH_METHOD authMethod;
-    private final OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod;
+    private final OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod;
     private final Boolean refreshTokenExistsForGivenOAuthFlow;
     private final String oauthFlow;
     private final String url;
@@ -27,7 +27,7 @@ public with sharing class ToolingAPIService {
     public ToolingAPIService() {
         this(
             DEFAULT_AUTH_METHOD,
-            DEFAULT_CMDT_UPSERT_METHOD,
+            DEFAULT_OAUTH_CREDS_UPSERT_METHOD,
             DEFAULT_DOMAIN,
             DEFAULT_USERNAME,
             DEFAULT_VERSION
@@ -35,12 +35,18 @@ public with sharing class ToolingAPIService {
     }
 
     public ToolingAPIService(AUTH_METHOD authMethod) {
-        this(authMethod, DEFAULT_CMDT_UPSERT_METHOD, DEFAULT_DOMAIN, DEFAULT_USERNAME, DEFAULT_VERSION);
+        this(
+            authMethod,
+            DEFAULT_OAUTH_CREDS_UPSERT_METHOD,
+            DEFAULT_DOMAIN,
+            DEFAULT_USERNAME,
+            DEFAULT_VERSION
+        );
     }
 
     public ToolingAPIService(
         AUTH_METHOD authMethod,
-        OAuthService.CMDT_UPSERT_METHOD cmdtUpsertMethod,
+        OAuthService.OAUTH_CREDS_UPSERT_METHOD credsUpsertMethod,
         String domain,
         String username,
         String version
@@ -72,12 +78,17 @@ public with sharing class ToolingAPIService {
                 this.refreshTokenExistsForGivenOAuthFlow = false;
             }
         }
-        this.cmdtUpsertMethod = cmdtUpsertMethod;
+        this.credsUpsertMethod = credsUpsertMethod;
         this.url = domain + '/services/data/v' + version + '/tooling/';
         this.username = username;
     }
 
-    public String makeCallout(String path, String contentType, String method, Boolean saveOAuthResponse) {
+    public String makeCallout(
+        String path,
+        String contentType,
+        String method,
+        Boolean saveOAuthResponse
+    ) {
         String accessToken;
         switch on this.authMethod {
             when CURRENT_USER_SESSIONID {
@@ -92,7 +103,8 @@ public with sharing class ToolingAPIService {
             when else {
                 accessToken = OAuthService.getToken(
                     this.oauthFlow,
-                    this.username
+                    this.username,
+                    this.credsUpsertMethod
                 );
             }
         }
@@ -132,7 +144,7 @@ public with sharing class ToolingAPIService {
                     // Refresh access token and try again
                     OAuthService oauth = new OAuthService(
                         this.authMethod,
-                        this.cmdtUpsertMethod,
+                        this.credsUpsertMethod,
                         this.url.substringBefore('/services')
                     );
                     OAuthService.OAuthResponse resp;
@@ -150,14 +162,27 @@ public with sharing class ToolingAPIService {
                         resp = oauth.generateAccessTokenFromRefreshFlow(
                             refreshToken
                         );
-                    }
-                    else {
+                    } else {
                         if (this.oauthFlow == 'creds') {
-                            resp = oauth.generateAccessTokenFromCredentialsFlow(false);
+                            resp = oauth.generateAccessTokenFromCredentialsFlow(
+                                false
+                            );
                         } else if (this.oauthFlow == 'jwt_kp') {
-                            resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(this.username, false);
+                            resp = oauth.generateAccessTokenFromJWTPackagedKeyFlow(
+                                this.username,
+                                false
+                            );
                         } else if (this.oauthFlow == 'jwt_ak') {
-                            resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(OAuthService.getAdminProvidedCertificateName(this.username), OAuthService.getAdminProvidedConsumerKey(this.username), this.username, false);
+                            resp = oauth.generateAccessTokenFromJWTAdminKeyFlow(
+                                OAuthService.getAdminProvidedCertificateName(
+                                    this.username
+                                ),
+                                OAuthService.getAdminProvidedConsumerKey(
+                                    this.username
+                                ),
+                                this.username,
+                                false
+                            );
                         } else {
                             throw new AuraHandledException(
                                 'Error: Session Id is invalid or not API-enabled!'
@@ -181,7 +206,15 @@ public with sharing class ToolingAPIService {
                         // This prevents the 'uncommitted work pending' error
                         if (saveOAuthResponse) {
                             if (this.oauthFlow == 'jwt_ak') {
-                                oauth.saveOAuthResponse(resp, OAuthService.getAdminProvidedCertificateName(this.username), OAuthService.getAdminProvidedConsumerKey(this.username));
+                                oauth.saveOAuthResponse(
+                                    resp,
+                                    OAuthService.getAdminProvidedCertificateName(
+                                        this.username
+                                    ),
+                                    OAuthService.getAdminProvidedConsumerKey(
+                                        this.username
+                                    )
+                                );
                             } else {
                                 oauth.saveOAuthResponse(resp);
                             }
