@@ -6,7 +6,9 @@ force-app/core/customMetadata/ConnectedApp*.md-meta.xml
 
 # Org Auth files
 server.crt
+server.csr
 server.key
+server.pass.key
 *auth_url.txt
 *auth_url.json
 
@@ -14,6 +16,7 @@ server.key
 .sf/
 .sfdx/
 mdapioutput/
+.vim-force.com/
 
 # LWC VSCode autocomplete
 jsconfig.json
