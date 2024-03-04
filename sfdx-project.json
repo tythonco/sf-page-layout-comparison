@@ -1,21 +1,24 @@
 {
-    "packageDirectories": [
-        {
-            "path": "force-app",
-            "default": true,
-            "package": "PageLayoutComparison",
-            "versionName": "ver 0.1",
-            "versionNumber": "0.1.0.NEXT",
-            "versionDescription": ""
-        }
-    ],
-    "namespace": "tythondemo",
-    "sfdcLoginUrl": "https://login.salesforce.com",
-    "packageAliases": {
-        "PageLayoutComparison": "0HoPH000000004r0AA",
-        "PageLayoutComparison@0.1.0-1": "04tPH0000006J6PYAU",
-        "PageLayoutComparison@0.1.0-2": "04tPH0000006Sb7YAE",
-        "PageLayoutComparison@0.1.0-3": "04tPH0000006SknYAE",
-        "PageLayoutComparison@0.1.0-4": "04tPH0000006lSTYAY"
+  "packageDirectories": [
+    {
+      "path": "force-app",
+      "default": true,
+      "package": "PageLayoutComparison",
+      "versionName": "ver 0.1",
+      "versionNumber": "0.1.0.NEXT",
+      "versionDescription": ""
     }
+  ],
+  "namespace": "tythondemo",
+  "sfdcLoginUrl": "https://login.salesforce.com",
+  "packageAliases": {
+    "PageLayoutComparison": "0HoPH000000004r0AA",
+    "PageLayoutComparison@latest": "04tPH0000006zjxYAA",
+    "PageLayoutComparison@0.1.0-1": "04tPH0000006J6PYAU",
+    "PageLayoutComparison@0.1.0-2": "04tPH0000006Sb7YAE",
+    "PageLayoutComparison@0.1.0-3": "04tPH0000006SknYAE",
+    "PageLayoutComparison@0.1.0-4": "04tPH0000006lSTYAY",
+    "PageLayoutComparison@0.1.0-5": "04tPH0000006zjxYAA",
+    "PageLayoutComparison@beta": "04tPH0000006zjxYAA"
+  }
 }
