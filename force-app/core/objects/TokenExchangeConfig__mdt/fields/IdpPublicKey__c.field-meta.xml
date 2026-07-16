@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>IdpPublicKey__c</fullName>
+    <description>Base64-encoded RSA public key from the identity provider (e.g. Auth0) used to verify JWT signatures</description>
+    <externalId>false</externalId>
+    <fieldManageability>SubscriberControlled</fieldManageability>
+    <inlineHelpText>Base64-encoded RSA public key from your Auth0 tenant</inlineHelpText>
+    <label>IDP Public Key</label>
+    <length>131072</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalClientApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>devs@tython.co</contactEmail>
+    <distributionState>Packaged</distributionState>
+    <isProtected>false</isProtected>
+    <label>Proof of Concept (ECA)</label>
+    <orgScopedExternalApp>00Df4000003BLEJ:Proof_of_Concept_ECA</orgScopedExternalApp>
+</ExternalClientApplication>
